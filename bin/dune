@@ -1,0 +1,4 @@
+(executable
+ (public_name oxqr)
+ (name main)
+ (libraries oxqr))
