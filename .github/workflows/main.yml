@@ -1,0 +1,41 @@
+name: "build and test"
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "checkout"
+        uses: "actions/checkout@v4"
+      - name: "cache opam"
+        uses: "actions/cache@v3"
+        with:
+          path: ~/.opam
+          key: oxqr-${{ runner.os }}-${{ hashFiles('*.opam') }}
+          restore-keys: |
+            oxqr-${{ runner.os }}-
+      - name: "install opam"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y opam
+      - name: "setup oxcaml"
+        run: |
+          opam update --all
+          opam switch create 5.2.0+ox --repos ox=git+https://github.com/oxcaml/opam-repository.git,default
+      - name: "install dependencies"
+        run: |
+          eval $(opam env --switch 5.2.0+ox)
+          opam install . --deps-only --with-test
+      - name: "build"
+        run: |
+          eval $(opam env --switch 5.2.0+ox)
+          opam exec -- dune build
+      - name: "test"
+        run: |
+          eval $(opam env --switch 5.2.0+ox)
+          opam exec -- dune runtest
