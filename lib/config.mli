@@ -8,6 +8,8 @@ end
 type t = { version : int; ecl : ECL.t }
 
 val make : version:int -> ecl:ECL.t -> t
-val compare : t -> t -> int
-val char_count_indicator_length : t -> int
+(** [make ~version ~ecl] creates a QR code configuration with the given
+    [version] and error correction level [ecl]. *)
+
 val get_capacity : t -> int
+(** Get the total data capacity in bits for the given configuration [t]. *)

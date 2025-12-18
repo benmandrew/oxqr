@@ -242,3 +242,35 @@ let capacity_table : int ConfigMap.t =
   List.fold_left add_entry ConfigMap.empty entries
 
 let get_capacity config = ConfigMap.find config capacity_table
+
+(* let mode_indicator = 0b0010
+let mode_length = 4
+let mask_number = 0b000
+let mask_length = 3
+
+let encode_format_string ~ecl =
+  let ecl_bits =
+    match ecl with
+    | ECL.L -> 0b01
+    | ECL.M -> 0b00
+    | ECL.Q -> 0b11
+    | ECL.H -> 0b10
+  in
+  (* 5-bit format data: ECL(2 bits) + mask(3 bits) *)
+  let data = (ecl_bits lsl 3) lor mask_number in
+  (* Shift left 10 to make room for ECC bits *)
+  let shifted = data lsl 10 in
+  (* Generator polynomial: x^10 + x^8 + x^5 + x^4 + x^2 + x + 1 = 0x537 *)
+  let generator = 0x537 in
+  let remainder = ref shifted in
+  (* Binary polynomial division: XOR-based *)
+  for i = 4 downto 0 do
+    if !remainder land (1 lsl (14 + i)) <> 0 then
+      remainder := !remainder lxor (generator lsl i)
+  done;
+  (* Extract 10-bit ECC and combine with data *)
+  let ecc = !remainder land 0x3FF in
+  let format_bits = (data lsl 10) lor ecc in
+  (* XOR with mask pattern (all versions use 0b101010000010010) *)
+  let format_mask = 0b101010000010010 in
+  format_bits lxor format_mask *)
