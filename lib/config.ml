@@ -1,4 +1,3 @@
-(* Error Correction Level *)
 module ECL = struct
   type t = L | M | Q | H
 
@@ -7,30 +6,33 @@ module ECL = struct
     Int.compare (to_int e1) (to_int e2)
 end
 
-module Config = struct
-  type t = { version : int; ecl : ECL.t }
+type t = { version : int; ecl : ECL.t }
 
-  let make ~version ~ecl =
-    assert (version >= 1 && version <= 40);
-    { version; ecl }
+let make ~version ~ecl =
+  assert (version >= 1 && version <= 40);
+  { version; ecl }
 
-  let compare c1 c2 =
-    let ver_cmp = Int.compare c1.version c2.version in
-    if ver_cmp <> 0 then ver_cmp else ECL.compare c1.ecl c2.ecl
+let compare c1 c2 =
+  let ver_cmp = Int.compare c1.version c2.version in
+  if ver_cmp <> 0 then ver_cmp else ECL.compare c1.ecl c2.ecl
 
-  let char_count_indicator_length t =
-    match t.version with
-    | v when v >= 1 && v <= 9 -> 9
-    | v when v >= 10 && v <= 26 -> 11
-    | v when v >= 27 && v <= 40 -> 13
-    | _ -> failwith "Invalid version number"
-end
+let char_count_indicator_length t =
+  match t.version with
+  | v when v >= 1 && v <= 9 -> 9
+  | v when v >= 10 && v <= 26 -> 11
+  | v when v >= 27 && v <= 40 -> 13
+  | _ -> failwith "Invalid version number"
 
-module ConfigMap = Map.Make (Config)
+module ConfigMap = Map.Make (struct
+  type nonrec t = t
 
-let alphanumeric_capacity : int ConfigMap.t =
+  let compare = compare
+end)
+
+(* Alphanumeric mode *)
+let capacity_table : int ConfigMap.t =
   let add_entry map (version, ecl, capacity) =
-    ConfigMap.add { Config.version; ecl } capacity map
+    ConfigMap.add { version; ecl } capacity map
   in
   let open ECL in
   let entries =
@@ -239,5 +241,4 @@ let alphanumeric_capacity : int ConfigMap.t =
   in
   List.fold_left add_entry ConfigMap.empty entries
 
-let get_alphanumeric_capacity config =
-  ConfigMap.find config alphanumeric_capacity
+let get_capacity config = ConfigMap.find config capacity_table
