@@ -1,2 +1,5 @@
 (test
- (name test_oxqr))
+ (name test_oxqr)
+ (libraries oxqr)
+ (flags
+  (:standard -w -32)))

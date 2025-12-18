@@ -88,7 +88,7 @@ let alignment_coords =
   |]
 
 let place_alignment_patterns t version =
-  if version < 2 then () (* Version 1 has no alignment patterns *)
+  if version < 2 then ()
   else if version >= 0 && version < Array.length alignment_coords then
     let coords = Array.get alignment_coords version in
     (* Create Cartesian product of coordinates *)
@@ -197,12 +197,24 @@ let place_pattern_modules t version =
   place_dark_module t version
 
 let to_unicode_string t =
+  let rtrim s =
+    let rec find i =
+      if i < 0 then ""
+      else if s.[i] = ' ' then find (i - 1)
+      else String.sub s 0 (i + 1)
+    in
+    if String.length s = 0 then "" else find (String.length s - 1)
+  in
   let buf = Buffer.create (t.width * t.width * 3) in
   for y = 0 to t.width - 1 do
+    let line_buf = Buffer.create (t.width * 2) in
     for x = 0 to t.width - 1 do
       let cell = Bytes.get t.buf ((y * t.width) + x) in
-      Buffer.add_string buf (if cell <> '\000' then "██" else "  ")
+      Buffer.add_string line_buf (if cell <> '\000' then "██" else "  ")
     done;
+    let line = Buffer.contents line_buf in
+    let trimmed = rtrim line in
+    Buffer.add_string buf trimmed;
     Buffer.add_char buf '\n'
   done;
   Buffer.contents buf

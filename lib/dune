@@ -1,2 +1,4 @@
 (library
- (name oxqr))
+ (name oxqr)
+ (flags
+  (:standard -w -32)))
