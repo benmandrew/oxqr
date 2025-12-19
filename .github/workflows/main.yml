@@ -31,7 +31,7 @@ jobs:
       - name: "install dependencies"
         run: |
           eval $(opam env --switch 5.2.0+ox)
-          opam install . --deps-only --with-test
+          opam install . -y --deps-only --with-test
       - name: "build"
         run: |
           eval $(opam env --switch 5.2.0+ox)
