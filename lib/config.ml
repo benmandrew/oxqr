@@ -16,13 +16,12 @@ let compare c1 c2 =
   let ver_cmp = Int.compare c1.version c2.version in
   if ver_cmp <> 0 then ver_cmp else ECL.compare c1.ecl c2.ecl
 
-  let char_count_indicator_length t =
-    match t.version with
-    | v when v >= 1 && v <= 9 -> 9
-    | v when v >= 10 && v <= 26 -> 11
-    | v when v >= 27 && v <= 40 -> 13
-    | _ -> raise (Invalid_argument "Invalid version number")
-end
+let char_count_indicator_length t =
+  match t.version with
+  | v when v >= 1 && v <= 9 -> 9
+  | v when v >= 10 && v <= 26 -> 11
+  | v when v >= 27 && v <= 40 -> 13
+  | _ -> raise (Invalid_argument "Invalid version number")
 
 module ConfigMap = Map.Make (struct
   type nonrec t = t
@@ -242,30 +241,17 @@ let capacity_table : int ConfigMap.t =
   in
   List.fold_left add_entry ConfigMap.empty entries
 
-let get_alphanumeric_capacity config =
-  ConfigMap.find config alphanumeric_capacity
-
+let get_capacity config = ConfigMap.find config capacity_table
 let mode_indicator_length = 4
 let mode_indicator = 0b0010
 
-let get_config s ecl =
+let get_config_and_capacity s ecl =
   let length = String.length s in
   let rec find_version v =
-    if v > 40 then
-      raise (Invalid_argument "Data too long to encode in QR code")
+    if v > 40 then raise (Invalid_argument "Data too long to encode in QR code")
     else
-      let config = Config.make ~version:v ~ecl in
-      let capacity = get_alphanumeric_capacity config in
-      if length <= capacity then config else find_version (v + 1)
+      let config = make ~version:v ~ecl in
+      let capacity = get_capacity config in
+      if length <= capacity then (config, capacity) else find_version (v + 1)
   in
   find_version 1
-
-(* open Buf
-
-let pack_preamble buf config =
-  (* Mode indicator *)
-  Buf.add_bits buf mode_indicator mode_indicator_length;
-  (* Character count indicator *)
-  let cci_len = Config.char_count_indicator_length config in
-  Buf.add_bits buf (get_alphanumeric_capacity config) cci_len;
-  buf *)
