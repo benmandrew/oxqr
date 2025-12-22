@@ -269,6 +269,18 @@ let place_format_info t ~ecl ~mask_pattern =
   set_module t 8 (w - 2) (bit 13);
   set_module t 8 (w - 1) (bit 14)
 
+let apply_mask_pattern t =
+  for y = 0 to t.width - 1 do
+    for x = 0 to t.width - 1 do
+      if not (is_reserved t x y 1) then
+        let mask = (x + y) mod 2 = 0 (* Mask pattern 0: (x + y) mod 2 = 0 *) in
+        if mask then
+          let current = Bytes.get t.buf ((y * t.width) + x) in
+          let new_value = if current = '\000' then '\001' else '\000' in
+          Bytes.set t.buf ((y * t.width) + x) new_value
+    done
+  done
+
 let to_unicode_string t =
   let rtrim s =
     let rec find i =

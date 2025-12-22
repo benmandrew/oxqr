@@ -147,6 +147,7 @@ let generate_qr s ecl =
   let mask_pattern = 0 in
   Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern;
   Qr.place_data qr final_data config.version;
+  Qr.apply_mask_pattern qr;
   qr
 
 let generate_debug s ecl =
