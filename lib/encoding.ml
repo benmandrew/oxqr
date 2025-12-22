@@ -135,4 +135,30 @@ let generate s ecl =
   let data = Bitbuf.to_bytes buf in
   let blocks = split_into_blocks data ec_info in
   let final_data = interleave_blocks blocks ec_info in
+  (* Create QR code matrix and place data *)
+  let qr = Qr.make ~version:config.version in
+  Qr.place_pattern_modules qr config.version;
+  (* TODO: choose best mask; for now use mask pattern 0 *)
+  let mask_pattern = 0 in
+  Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern;
+  Qr.place_data qr final_data config.version;
+  qr
+
+let generate_debug s ecl =
+  let config, _capacity = Config.get_config_and_capacity s ecl in
+  let ec_info = Config.get_ec_info config in
+  let total_data_codewords =
+    (ec_info.group1_blocks * ec_info.group1_data_codewords)
+    + (ec_info.group2_blocks * ec_info.group2_data_codewords)
+  in
+  let buf = Bitbuf.create total_data_codewords in
+  Bitbuf.write_bits_msb buf ~value:Config.mode_indicator
+    ~width:Config.mode_indicator_length;
+  let cci_len = Config.char_count_indicator_length config in
+  Bitbuf.write_bits_msb buf ~value:(String.length s) ~width:cci_len;
+  encode_alphanumeric_data buf s;
+  add_terminator_and_padding buf total_data_codewords;
+  let data = Bitbuf.to_bytes buf in
+  let blocks = split_into_blocks data ec_info in
+  let final_data = interleave_blocks blocks ec_info in
   format_output config data blocks final_data
