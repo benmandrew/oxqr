@@ -1,6 +1,6 @@
 (executable
  (public_name oxqr)
  (name main)
- (libraries oxqr)
+ (libraries oxqr cmdliner)
  (flags
   (:standard -w -32)))
