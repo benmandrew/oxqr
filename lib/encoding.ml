@@ -118,8 +118,8 @@ let format_output config data blocks final_data =
     |> Seq.map (fun c -> Printf.sprintf "%02X" (Char.code c))
     |> List.of_seq |> String.concat " ")
 
-let generate s ecl =
-  let config, _capacity = Config.get_config_and_capacity s ecl in
+let encode s ecl =
+  let config, _ = Config.get_config_and_capacity s ecl in
   let ec_info = Config.get_ec_info config in
   let total_data_codewords =
     (ec_info.group1_blocks * ec_info.group1_data_codewords)
@@ -132,7 +132,12 @@ let generate s ecl =
   Bitbuf.write_bits_msb buf ~value:(String.length s) ~width:cci_len;
   encode_alphanumeric_data buf s;
   add_terminator_and_padding buf total_data_codewords;
-  let data = Bitbuf.to_bytes buf in
+  buf
+
+let generate_qr s ecl =
+  let config, _ = Config.get_config_and_capacity s ecl in
+  let ec_info = Config.get_ec_info config in
+  let data = Bitbuf.to_bytes @@ encode s ecl in
   let blocks = split_into_blocks data ec_info in
   let final_data = interleave_blocks blocks ec_info in
   (* Create QR code matrix and place data *)
