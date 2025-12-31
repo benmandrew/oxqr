@@ -7,6 +7,9 @@
 
 (env
  (release
-  (flags (:standard -w -32))
-  (ocamlopt_flags (:standard -O3 -w -32))
-  (link_flags (:standard -cclib -s))))
+  (flags
+   (:standard -w -32))
+  (ocamlopt_flags
+   (:standard -O3 -w -32))
+  (link_flags
+   (:standard -cclib -s))))

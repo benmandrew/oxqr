@@ -1,11 +1,13 @@
 open Oxqr
-
 open Base
 
 let run data ecl =
   let qr = Encoding.generate_qr data ecl in
   let qr_string = Qr.to_unicode_string qr in
-  Out_channel.output_string Out_channel.stdout qr_string
+  Out_channel.output_string Out_channel.stdout qr_string;
+  let out_channel = Out_channel.open_text "qr_code.svg" in
+  Xml.qr_to_xml qr |> Out_channel.output_string out_channel;
+  Out_channel.close out_channel
 
 let string_of_ecl = function
   | Config.ECL.L -> "L"
@@ -26,10 +28,13 @@ let parse_ecl s =
 
 let print_help () =
   Out_channel.output_string Out_channel.stdout "Usage: oxqr [OPTIONS] DATA\n";
-  Out_channel.output_string Out_channel.stdout "\nGenerate a QR code from alphanumeric input.\n";
+  Out_channel.output_string Out_channel.stdout
+    "\nGenerate a QR code from alphanumeric input.\n";
   Out_channel.output_string Out_channel.stdout "\nOPTIONS:\n";
-  Out_channel.output_string Out_channel.stdout "  --ecl ECL       Error correction level (L|M|Q|H). Default: M.\n";
-  Out_channel.output_string Out_channel.stdout "  -h, --help      Show this help message.\n"
+  Out_channel.output_string Out_channel.stdout
+    "  --ecl ECL       Error correction level (L|M|Q|H). Default: M.\n";
+  Out_channel.output_string Out_channel.stdout
+    "  -h, --help      Show this help message.\n"
 
 let rec parse_args argv idx data ecl =
   if idx >= Array.length argv then (data, ecl)
@@ -40,7 +45,8 @@ let rec parse_args argv idx data ecl =
         Stdlib.exit 0
     | "--ecl" ->
         if idx + 1 >= Array.length argv then (
-          Out_channel.output_string Out_channel.stderr "Error: --ecl requires an argument\n";
+          Out_channel.output_string Out_channel.stderr
+            "Error: --ecl requires an argument\n";
           Stdlib.exit 2)
         else
           let new_ecl = parse_ecl argv.(idx + 1) in
