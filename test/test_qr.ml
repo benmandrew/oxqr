@@ -1,9 +1,10 @@
 open Oxqr
+open Base
 
 let%expect_test "test_version_2_pattern_modules" =
   let qr = Qr.make ~version:2 in
   Qr.place_pattern_modules qr 2;
-  Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
+  Stdlib.Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
   [%expect
     {|
     ██████████████████████████████████████████████████████████████████
@@ -45,9 +46,9 @@ let%expect_test "test_version_1_place_data_full" =
   let config = Config.make ~version:1 ~ecl:Config.ECL.L in
   let qr = Qr.make ~version:config.version in
   Qr.place_pattern_modules qr config.version;
-  let data = Bytes.of_seq @@ Seq.init 26 (fun _ -> Char.chr 0b11111111) in
+  let data = Bytes.init 26 ~f:(fun _ -> Char.of_int_exn 0b11111111) in
   Qr.place_data qr data config.version;
-  Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
+  Stdlib.Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
   [%expect
     {|
     ██████████████████████████████████████████████████████████
@@ -85,9 +86,9 @@ let%expect_test "test_version_1_place_data_partial" =
   let config = Config.make ~version:1 ~ecl:Config.ECL.L in
   let qr = Qr.make ~version:config.version in
   Qr.place_pattern_modules qr config.version;
-  let data = Bytes.of_seq @@ Seq.init 26 (fun _ -> Char.chr 0b10001010) in
+  let data = Bytes.init 26 ~f:(fun _ -> Char.of_int_exn 0b10001010) in
   Qr.place_data qr data config.version;
-  Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
+  Stdlib.Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
   [%expect
     {|
     ██████████████████████████████████████████████████████████
@@ -126,17 +127,17 @@ let%expect_test "test_format_bits_generation" =
   let format_bits = Qr.compute_format_bits Config.ECL.L 4 in
   for i = 0 to 14 do
     let bit = (format_bits lsr (14 - i)) land 1 in
-    Printf.printf "%d" bit
+    Stdlib.Printf.printf "%d" bit
   done;
-  Printf.printf "\n";
+  Stdlib.Printf.printf "\n";
   [%expect "110011000101111"]
 
-let%expect_test "test_version_1_format_info" =
+let%expect_test "test_version_2_format_info" =
   let config = Config.make ~version:2 ~ecl:Config.ECL.L in
   let qr = Qr.make ~version:config.version in
   Qr.place_pattern_modules qr config.version;
   Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern:0;
-  Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
+  Stdlib.Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
   [%expect
     {|
     ██████████████████████████████████████████████████████████████████
@@ -177,7 +178,7 @@ let%expect_test "test_version_1_format_info" =
 let%expect_test "test_hello_world" =
   let qr = Encoding.generate_qr "HELLO WORLD" Config.ECL.M in
   let qr_string = Qr.to_unicode_string qr in
-  Printf.printf "%s\n" qr_string;
+  Stdlib.Printf.printf "%s\n" qr_string;
   [%expect
     {|
     ██████████████████████████████████████████████████████████

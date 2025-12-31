@@ -1,32 +1,34 @@
-module ECL = struct
-  type t = L | M | Q | H
+open Base
 
-  let compare e1 e2 =
-    let to_int = function L -> 0 | M -> 1 | Q -> 2 | H -> 3 in
-    Int.compare (to_int e1) (to_int e2)
+module ECL = struct
+  type t = L | M | Q | H [@@deriving sexp_of, compare, hash]
 end
 
-type t = { version : int; ecl : ECL.t }
+module T = struct
+  type t = { version : int; ecl : ECL.t } [@@deriving sexp_of, compare, hash]
+end
 
-let make ~version ~ecl =
+include T
+
+let make_local ~version ~(ecl @ local) =
+  assert (version >= 1 && version <= 40);
+  exclave_ { version; ecl }
+
+let make ~version ~(ecl @ local) =
   assert (version >= 1 && version <= 40);
   { version; ecl }
 
-let compare c1 c2 =
-  let ver_cmp = Int.compare c1.version c2.version in
-  if ver_cmp <> 0 then ver_cmp else ECL.compare c1.ecl c2.ecl
-
-let char_count_indicator_length t =
+let[@zero_alloc] char_count_indicator_length t =
   match t.version with
   | v when v >= 1 && v <= 9 -> 9
   | v when v >= 10 && v <= 26 -> 11
   | v when v >= 27 && v <= 40 -> 13
   | _ -> raise (Invalid_argument "Invalid version number")
 
-let alphanumeric_encode c =
+let[@zero_alloc] alphanumeric_encode c =
   match c with
-  | '0' .. '9' -> Char.code c - Char.code '0'
-  | 'A' .. 'Z' -> Char.code c - Char.code 'A' + 10
+  | '0' .. '9' -> Char.to_int c - Char.to_int '0'
+  | 'A' .. 'Z' -> Char.to_int c - Char.to_int 'A' + 10
   | ' ' -> 36
   | '$' -> 37
   | '%' -> 38
@@ -36,16 +38,22 @@ let alphanumeric_encode c =
   | '.' -> 42
   | '/' -> 43
   | ':' -> 44
-  | _ ->
-      raise
-        (Invalid_argument
-           (Printf.sprintf "Invalid alphanumeric character: %c" c))
+  | _ -> raise (Invalid_argument "Invalid alphanumeric character")
 
-module ConfigMap = Map.Make (struct
-  type nonrec t = t
-
-  let compare = compare
-end)
+let[@zero_alloc] alphanumeric_encode_res c = exclave_
+  match c with
+  | '0' .. '9' -> Ok (Char.to_int c - Char.to_int '0')
+  | 'A' .. 'Z' -> Ok (Char.to_int c - Char.to_int 'A' + 10)
+  | ' ' -> Ok 36
+  | '$' -> Ok 37
+  | '%' -> Ok 38
+  | '*' -> Ok 39
+  | '+' -> Ok 40
+  | '-' -> Ok 41
+  | '.' -> Ok 42
+  | '/' -> Ok 43
+  | ':' -> Ok 44
+  | _ -> Error "Invalid alphanumeric character"
 
 type ec_info = {
   ec_codewords_per_block : int;
@@ -56,9 +64,10 @@ type ec_info = {
 }
 
 (* Alphanumeric mode *)
-let capacity_table : int ConfigMap.t =
-  let add_entry map (version, ecl, capacity) =
-    ConfigMap.add { version; ecl } capacity map
+let capacity_table =
+  let hash_table = Hashtbl.create (module T) in
+  let add_entry (version, ecl, capacity) =
+    Hashtbl.set hash_table ~key:{ version; ecl } ~data:capacity
   in
   let open ECL in
   let entries =
@@ -265,20 +274,22 @@ let capacity_table : int ConfigMap.t =
       (40, H, 1852);
     ]
   in
-  List.fold_left add_entry ConfigMap.empty entries
+  List.iter entries ~f:add_entry;
+  hash_table
 
-let ec_table : ec_info ConfigMap.t =
-  let add_entry map
+let ec_table =
+  let hash_table = Hashtbl.create (module T) in
+  let add_entry
       (version, ecl, ec_per_block, g1_blocks, g1_data, g2_blocks, g2_data) =
-    ConfigMap.add { version; ecl }
-      {
-        ec_codewords_per_block = ec_per_block;
-        group1_blocks = g1_blocks;
-        group1_data_codewords = g1_data;
-        group2_blocks = g2_blocks;
-        group2_data_codewords = g2_data;
-      }
-      map
+    Hashtbl.set hash_table ~key:{ version; ecl }
+      ~data:
+        {
+          ec_codewords_per_block = ec_per_block;
+          group1_blocks = g1_blocks;
+          group1_data_codewords = g1_data;
+          group2_blocks = g2_blocks;
+          group2_data_codewords = g2_data;
+        }
   in
   let open ECL in
   let entries =
@@ -485,20 +496,21 @@ let ec_table : ec_info ConfigMap.t =
       (40, H, 30, 20, 15, 61, 16);
     ]
   in
-  List.fold_left add_entry ConfigMap.empty entries
+  List.iter entries ~f:add_entry;
+  hash_table
 
-let get_capacity config = ConfigMap.find config capacity_table
-let get_ec_info config = ConfigMap.find config ec_table
+let get_capacity config = Hashtbl.find_exn capacity_table config
+let get_ec_info config = Hashtbl.find_exn ec_table config
 let mode_indicator_length = 4
 let mode_indicator = 0b0010
 
-let get_config_and_capacity s ecl =
+let rec find_version (v @ local) (ecl @ local) (length @ local) =
+  if v > 40 then raise (Invalid_argument "Data too long to encode in QR code")
+  else
+    let config = make ~version:v ~ecl in
+    let capacity = get_capacity config in
+    if length <= capacity then config else find_version (v + 1) ecl length
+
+let get_config s (ecl @ local) =
   let length = String.length s in
-  let rec find_version v =
-    if v > 40 then raise (Invalid_argument "Data too long to encode in QR code")
-    else
-      let config = make ~version:v ~ecl in
-      let capacity = get_capacity config in
-      if length <= capacity then (config, capacity) else find_version (v + 1)
-  in
-  find_version 1
+  find_version 1 ecl length

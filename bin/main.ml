@@ -3,8 +3,7 @@ open Oxqr
 let run data ecl =
   let qr = Encoding.generate_qr data ecl in
   let qr_string = Qr.to_unicode_string qr in
-  print_string qr_string;
-  Ok ()
+  print_string qr_string
 
 let data_arg =
   let doc = "Alphanumeric data to encode as a QR code." in
@@ -37,14 +36,8 @@ let ecl_arg =
   Cmdliner.Arg.value (Cmdliner.Arg.opt ecl_conv Config.ECL.M info)
 
 let term =
-  let run_t data ecl =
-    try run data ecl with Invalid_argument msg -> Error (`Msg msg)
-  in
-  let t =
-    let open Cmdliner.Term in
-    app (app (const run_t) data_arg) ecl_arg
-  in
-  Cmdliner.Term.term_result t
+  let open Cmdliner.Term in
+  app (app (const run) data_arg) ecl_arg
 
 let cmd =
   let doc = "Generate a QR code from alphanumeric input" in
