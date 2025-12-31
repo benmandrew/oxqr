@@ -5,25 +5,25 @@ type t = {
   mutable bit_pos : int; (* number of bits written so far *)
 }
 
-(* 177x177, maximum size of QR code matrix *)
-let arena = (Bytes.make [@alloc stack]) 31329 '\000'
-let[@zero_alloc] create () = exclave_ { buf = arena; bit_pos = 0 }
-let[@zero_alloc] capacity_bits (t @ local) = Bytes.length t.buf * 8
-let[@zero_alloc] bits_written (t @ local) = t.bit_pos
-let[@zero_alloc] remaining_bits (t @ local) = capacity_bits t - t.bit_pos
-let[@zero_alloc] pos (t @ local) = t.bit_pos
-let[@zero_alloc] pos_byte (t @ local) = t.bit_pos lsr 3
-let[@zero_alloc] pos_bit_in_byte (t @ local) = t.bit_pos land 7
+let create len_bytes = exclave_
+  { buf = (Bytes.make [@alloc stack]) len_bytes '\000'; bit_pos = 0 }
+
+let capacity_bits (t @ local) = Bytes.length t.buf * 8
+let bits_written (t @ local) = t.bit_pos
+let remaining_bits (t @ local) = capacity_bits t - t.bit_pos
+let pos (t @ local) = t.bit_pos
+let pos_byte (t @ local) = t.bit_pos lsr 3
+let pos_bit_in_byte (t @ local) = t.bit_pos land 7
 
 let reset (t @ local) =
   Bytes.fill t.buf ~pos:0 ~len:(Bytes.length t.buf) '\000';
   t.bit_pos <- 0
 
-let[@zero_alloc] check_space (t @ local) needed_bits =
+let check_space (t @ local) needed_bits =
   if needed_bits > remaining_bits t then Ok ()
   else Error "Bitbuf: not enough space"
 
-let[@zero_alloc] write_bit (t @ local) b =
+let write_bit (t @ local) b =
   let byte_i = pos_byte t in
   let bit_off = pos_bit_in_byte t in
   let free = 8 - bit_off in
@@ -33,7 +33,7 @@ let[@zero_alloc] write_bit (t @ local) b =
   Bytes.unsafe_set t.buf byte_i (Char.of_int_exn v);
   t.bit_pos <- t.bit_pos + 1
 
-let write_bits_msb (t @ local) ~value ~width =
+let write_bits_msb (t @ local) value width =
   if width < 0 || width > 31 then invalid_arg "Bitbuf.write_bits_msb: width";
   if width > 0 && value lsr width <> 0 then
     invalid_arg "Bitbuf.write_bits_msb: value doesn't fit width";
@@ -53,8 +53,9 @@ let write_bits_msb (t @ local) ~value ~width =
     remaining := !remaining - k
   done
 
-let[@zero_alloc] write_byte (t @ local) b =
+let write_byte (t @ local) b =
   if b land lnot 0xFF <> 0 then invalid_arg "Bitbuf.write_byte: out of range";
-  write_bits_msb t ~value:b ~width:8
+  write_bits_msb t b 8
 
-let to_bytes (t @ local) = t.buf
+let to_bytes_local (t @ local) = t.buf
+let to_bytes t = t.buf

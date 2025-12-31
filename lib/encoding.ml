@@ -1,6 +1,6 @@
 open Base
 
-let[@zero_alloc] rec encode_pairs buf s len i =
+let[@zero_alloc] rec encode_pairs (buf @ local) s len i =
   let[@zero_alloc] decode c =
     match c with
     | '0' .. '9' -> Char.to_int c - Char.to_int '0'
@@ -19,11 +19,11 @@ let[@zero_alloc] rec encode_pairs buf s len i =
   if i >= len then ()
   else if i = len - 1 then
     let value = decode s.[i] in
-    Bitbuf.write_bits_msb buf ~value ~width:6
+    Bitbuf.write_bits_msb buf value 6
   else
     let v1 = decode s.[i] and v2 = decode s.[i + 1] in
     let value = (v1 * 45) + v2 in
-    Bitbuf.write_bits_msb buf ~value ~width:11;
+    Bitbuf.write_bits_msb buf value 11;
     encode_pairs buf s len (i + 2)
 
 let[@zero_alloc] encode_alphanumeric_data buf s =
@@ -35,12 +35,11 @@ let add_terminator_and_padding (buf @ local) total_data_codewords =
   let bits_used = Bitbuf.bits_written buf in
   let max_bits = total_data_codewords * 8 in
   let terminator_bits = min 4 (max_bits - bits_used) in
-  if terminator_bits > 0 then
-    Bitbuf.write_bits_msb buf ~value:0 ~width:terminator_bits;
+  if terminator_bits > 0 then Bitbuf.write_bits_msb buf 0 terminator_bits;
   (* Pad to byte boundary *)
   let bits_after_term = Bitbuf.bits_written buf in
   let pad_to_byte = (8 - (bits_after_term % 8)) % 8 in
-  if pad_to_byte > 0 then Bitbuf.write_bits_msb buf ~value:0 ~width:pad_to_byte;
+  if pad_to_byte > 0 then Bitbuf.write_bits_msb buf 0 pad_to_byte;
   (* Add padding bytes (alternating 0xEC and 0x11) *)
   let bytes_used = Bitbuf.bits_written buf / 8 in
   let rec add_padding i =
@@ -116,11 +115,10 @@ let encode s (ecl @ local) =
     + (ec_info.group2_blocks * ec_info.group2_data_codewords)
   in
   exclave_
-  let buf = Bitbuf.create () in
-  Bitbuf.write_bits_msb buf ~value:Config.mode_indicator
-    ~width:Config.mode_indicator_length;
+  let buf = Bitbuf.create total_data_codewords in
+  Bitbuf.write_bits_msb buf Config.mode_indicator Config.mode_indicator_length;
   let cci_len = Config.char_count_indicator_length config in
-  Bitbuf.write_bits_msb buf ~value:(String.length s) ~width:cci_len;
+  Bitbuf.write_bits_msb buf (String.length s) cci_len;
   encode_alphanumeric_data buf s;
   add_terminator_and_padding buf total_data_codewords;
   buf
@@ -129,7 +127,7 @@ let generate_qr s ecl =
   let config = Config.get_config s ecl in
   let ec_info = Config.get_ec_info config in
   let buf = encode s ecl in
-  let data = Bitbuf.to_bytes buf in
+  let data = Bitbuf.to_bytes_local buf in
   let blocks = split_into_blocks data ec_info in
   let final_data = interleave_blocks blocks ec_info in
   let qr = Qr.make ~version:config.version in

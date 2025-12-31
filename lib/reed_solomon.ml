@@ -1,11 +1,13 @@
 (* Reed-Solomon error correction for QR codes *)
 
+open Base
+
 (* x⁸ + x⁴ + x³ + x + 1 *)
 let reduction_polynomial = 0x11D
 
 let exp_table, log_table =
-  let exp = Array.make 512 0 in
-  let log = Array.make 256 0 in
+  let exp = Array.create ~len:512 0 in
+  let log = Array.create ~len:256 0 in
   let x = ref 1 in
   for i = 0 to 254 do
     exp.(i) <- !x;
@@ -28,7 +30,7 @@ let polynomial_mult a b =
 
 let generate_generator_polynomial n =
   (* Generate the generator polynomial for n error correction codewords *)
-  let poly = Array.make (n + 1) 0 in
+  let poly = Array.create ~len:(n + 1) 0 in
   poly.(0) <- 1;
   for i = 0 to n - 1 do
     (* Multiply by (x - α^i) *)
@@ -39,14 +41,14 @@ let generate_generator_polynomial n =
   done;
   poly
 
-let generate_error_correction data ec_count =
+let generate_error_correction (data @ local) ec_count =
   let data_len = Bytes.length data in
   let generator = generate_generator_polynomial ec_count in
   (* Initialize remainder with message padded by ec_count zeros *)
-  let remainder = Array.make (data_len + ec_count) 0 in
+  let remainder = Array.create ~len:(data_len + ec_count) 0 in
   (* Copy data into the beginning of remainder *)
   for i = 0 to data_len - 1 do
-    remainder.(i) <- Char.code (Bytes.get data i)
+    remainder.(i) <- Char.to_int (Bytes.get data i)
   done;
   (* Polynomial division *)
   for i = 0 to data_len - 1 do
@@ -60,6 +62,6 @@ let generate_error_correction data ec_count =
   (* Extract the last ec_count bytes as the error correction codewords *)
   let result = Bytes.create ec_count in
   for i = 0 to ec_count - 1 do
-    Bytes.set result i (Char.chr remainder.(data_len + i))
+    Bytes.set result i (Char.of_int_exn remainder.(data_len + i))
   done;
   result

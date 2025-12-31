@@ -1,3 +1,5 @@
+open Base
+
 type t = { buf : bytes; width : int }
 
 let size version = ((version - 1) * 4) + 21
@@ -12,8 +14,7 @@ let set_module t x y value =
 
 let place_finders t =
   let positions = [ (0, 0); (t.width - 7, 0); (0, t.width - 7) ] in
-  List.iter
-    (fun (dx, dy) ->
+  List.iter positions ~f:(fun (dx, dy) ->
       for i = 0 to 6 do
         for j = 0 to 6 do
           let is_border = i = 0 || i = 6 || j = 0 || j = 6 in
@@ -22,7 +23,6 @@ let place_finders t =
           set_module t (dx + i) (dy + j) value
         done
       done)
-    positions
 
 let place_separators t =
   (* Around top-left finder *)
@@ -43,7 +43,7 @@ let place_separators t =
 
 let place_timing_patterns t =
   for i = 8 to t.width - 9 do
-    let value = if (i - 8) mod 2 = 0 then '\001' else '\000' in
+    let value = if (i - 8) % 2 = 0 then '\001' else '\000' in
     set_module t i 6 value;
     set_module t 6 i value
   done
@@ -97,10 +97,8 @@ let place_alignment_patterns t version =
   else if version >= 0 && version < Array.length alignment_coords then
     let coords = Array.get alignment_coords version in
     (* Create Cartesian product of coordinates *)
-    List.iter
-      (fun cx ->
-        List.iter
-          (fun cy ->
+    List.iter coords ~f:(fun cx ->
+        List.iter coords ~f:(fun cy ->
             (* Don't place over finders *)
             if
               not
@@ -118,9 +116,7 @@ let place_alignment_patterns t version =
                   in
                   set_module t (cx + i) (cy + j) value
                 done
-              done)
-          coords)
-      coords
+              done))
 
 let place_dark_module t version =
   let y = (4 * version) + 9 in
@@ -133,10 +129,8 @@ let alignment_coords_for_version version =
 
 let is_in_alignment_pattern t x y version =
   let coords = alignment_coords_for_version version in
-  List.exists
-    (fun cx ->
-      List.exists
-        (fun cy ->
+  List.exists coords ~f:(fun cx ->
+      List.exists coords ~f:(fun cy ->
           (* Check if (x, y) is within the 5x5 alignment pattern centered at (cx, cy) *)
           abs (x - cx) <= 2
           && abs (y - cy) <= 2
@@ -144,9 +138,7 @@ let is_in_alignment_pattern t x y version =
                ((* Don't consider alignment patterns that overlap finders *)
                 (cx < 9 && cy < 9)
                || (cx >= t.width - 8 && cy < 9)
-               || (cx < 9 && cy >= t.width - 8)))
-        coords)
-    coords
+               || (cx < 9 && cy >= t.width - 8))))
 
 let is_reserved t x y version =
   let in_top_left = x <= 8 && y <= 8 in
@@ -170,7 +162,7 @@ let place_data t data version =
   let x = ref (t.width - 1) in
   let upward = ref true in
   while !x > 0 && !bit_pos < data_bits do
-    if !x = 6 then decr x;
+    if !x = 6 then Int.decr x;
     (* skip vertical timing column *)
     if !x > 0 then (
       if !upward then
@@ -179,13 +171,13 @@ let place_data t data version =
             let px = !x - dx in
             if (not (is_reserved t px y version)) && !bit_pos < data_bits then (
               let byte_idx = !bit_pos / 8 in
-              let bit_idx = 7 - (!bit_pos mod 8) in
+              let bit_idx = 7 - (!bit_pos % 8) in
               let bit =
-                (int_of_char (Bytes.get data byte_idx) lsr bit_idx) land 1
+                (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1
               in
               let value = if bit = 1 then '\001' else '\000' in
               set_module t px y value;
-              incr bit_pos)
+              Int.incr bit_pos)
           done
         done
       else
@@ -194,13 +186,13 @@ let place_data t data version =
             let px = !x - dx in
             if (not (is_reserved t px y version)) && !bit_pos < data_bits then (
               let byte_idx = !bit_pos / 8 in
-              let bit_idx = 7 - (!bit_pos mod 8) in
+              let bit_idx = 7 - (!bit_pos % 8) in
               let bit =
-                (int_of_char (Bytes.get data byte_idx) lsr bit_idx) land 1
+                (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1
               in
               let value = if bit = 1 then '\001' else '\000' in
               set_module t px y value;
-              incr bit_pos)
+              Int.incr bit_pos)
           done
         done;
       x := !x - 2;
@@ -273,10 +265,12 @@ let apply_mask_pattern t =
   for y = 0 to t.width - 1 do
     for x = 0 to t.width - 1 do
       if not (is_reserved t x y 1) then
-        let mask = (x + y) mod 2 = 0 (* Mask pattern 0: (x + y) mod 2 = 0 *) in
+        let mask = (x + y) % 2 = 0 (* Mask pattern 0: (x + y) % 2 = 0 *) in
         if mask then
           let current = Bytes.get t.buf ((y * t.width) + x) in
-          let new_value = if current = '\000' then '\001' else '\000' in
+          let new_value =
+            if Char.equal__local current '\000' then '\001' else '\000'
+          in
           Bytes.set t.buf ((y * t.width) + x) new_value
     done
   done
@@ -285,8 +279,8 @@ let to_unicode_string t =
   let rtrim s =
     let rec find i =
       if i < 0 then ""
-      else if s.[i] = ' ' then find (i - 1)
-      else String.sub s 0 (i + 1)
+      else if Char.equal__local s.[i] ' ' then find (i - 1)
+      else String.sub s ~pos:0 ~len:(i + 1)
     in
     if String.length s = 0 then "" else find (String.length s - 1)
   in
@@ -299,7 +293,8 @@ let to_unicode_string t =
         if x < 0 || x >= t.width || y < 0 || y >= t.width then '\000'
         else Bytes.get t.buf ((y * t.width) + x)
       in
-      Buffer.add_string line_buf (if cell <> '\000' then "  " else "██")
+      Buffer.add_string line_buf
+        (if not (Char.equal__local cell '\000') then "  " else "██")
     done;
     let line = Buffer.contents line_buf in
     let trimmed = rtrim line in
