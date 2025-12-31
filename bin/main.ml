@@ -1,15 +1,11 @@
 open Oxqr
 
+open Base
+
 let run data ecl =
   let qr = Encoding.generate_qr data ecl in
   let qr_string = Qr.to_unicode_string qr in
-  print_string qr_string
-
-let data_arg =
-  let doc = "Alphanumeric data to encode as a QR code." in
-  let info = Cmdliner.Arg.info [] ~docv:"DATA" ~doc in
-  Cmdliner.Arg.required
-    (Cmdliner.Arg.pos 0 (Cmdliner.Arg.some Cmdliner.Arg.string) None info)
+  Out_channel.output_string Out_channel.stdout qr_string
 
 let string_of_ecl = function
   | Config.ECL.L -> "L"
@@ -17,33 +13,55 @@ let string_of_ecl = function
   | Q -> "Q"
   | H -> "H"
 
-let parse_ecl =
-  let open Config.ECL in
-  fun s ->
-    match String.uppercase_ascii s with
-    | "L" -> Ok L
-    | "M" -> Ok M
-    | "Q" -> Ok Q
-    | "H" -> Ok H
-    | _ -> Error (`Msg "ECL must be one of L, M, Q, H")
+let parse_ecl s =
+  match String.uppercase s with
+  | "L" -> Config.ECL.L
+  | "M" -> Config.ECL.M
+  | "Q" -> Config.ECL.Q
+  | "H" -> Config.ECL.H
+  | _ ->
+      Out_channel.output_string Out_channel.stderr
+        (Printf.sprintf "Error: ECL must be one of L, M, Q, H (got '%s')\n" s);
+      Stdlib.exit 2
 
-let pp_ecl fmt ecl = Format.pp_print_string fmt (string_of_ecl ecl)
-let ecl_conv = Cmdliner.Arg.conv (parse_ecl, pp_ecl)
+let print_help () =
+  Out_channel.output_string Out_channel.stdout "Usage: oxqr [OPTIONS] DATA\n";
+  Out_channel.output_string Out_channel.stdout "\nGenerate a QR code from alphanumeric input.\n";
+  Out_channel.output_string Out_channel.stdout "\nOPTIONS:\n";
+  Out_channel.output_string Out_channel.stdout "  --ecl ECL       Error correction level (L|M|Q|H). Default: M.\n";
+  Out_channel.output_string Out_channel.stdout "  -h, --help      Show this help message.\n"
 
-let ecl_arg =
-  let doc = "Error correction level (L|M|Q|H). Default: M." in
-  let info = Cmdliner.Arg.info [ "ecl" ] ~docv:"ECL" ~doc in
-  Cmdliner.Arg.value (Cmdliner.Arg.opt ecl_conv Config.ECL.M info)
+let rec parse_args argv idx data ecl =
+  if idx >= Array.length argv then (data, ecl)
+  else
+    match argv.(idx) with
+    | "-h" | "--help" ->
+        print_help ();
+        Stdlib.exit 0
+    | "--ecl" ->
+        if idx + 1 >= Array.length argv then (
+          Out_channel.output_string Out_channel.stderr "Error: --ecl requires an argument\n";
+          Stdlib.exit 2)
+        else
+          let new_ecl = parse_ecl argv.(idx + 1) in
+          parse_args argv (idx + 2) data new_ecl
+    | arg when String.is_prefix arg ~prefix:"-" ->
+        Out_channel.output_string Out_channel.stderr
+          (Printf.sprintf "Error: Unknown option '%s'\n" arg);
+        Stdlib.exit 2
+    | arg ->
+        if Option.is_some data then (
+          Out_channel.output_string Out_channel.stderr
+            "Error: Too many positional arguments\n";
+          Stdlib.exit 2)
+        else parse_args argv (idx + 1) (Some arg) ecl
 
-let term =
-  let open Cmdliner.Term in
-  app (app (const run) data_arg) ecl_arg
-
-let cmd =
-  let doc = "Generate a QR code from alphanumeric input" in
-  let exits =
-    Cmdliner.Cmd.Exit.info ~doc:"on invalid input or execution error" 2
-  in
-  Cmdliner.Cmd.v (Cmdliner.Cmd.info "oxqr" ~doc ~exits:[ exits ]) term
-
-let () = exit (Cmdliner.Cmd.eval cmd)
+let () =
+  let data, ecl = parse_args (Sys.get_argv ()) 1 None Config.ECL.M in
+  match data with
+  | Some d -> run d ecl
+  | None ->
+      Out_channel.output_string Out_channel.stderr
+        "Error: DATA argument is required\n";
+      print_help ();
+      Stdlib.exit 2

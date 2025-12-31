@@ -13,7 +13,6 @@ depends: [
   "dune" {>= "3.20"}
   "ocaml"
   "ppx_expect"
-  "cmdliner"
   "odoc" {with-doc}
 ]
 build: [

@@ -19,7 +19,7 @@
  (name oxqr)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml ppx_expect cmdliner)
+ (depends ocaml ppx_expect)
  (tags
   ("add topics" "to describe" your project)))
 
