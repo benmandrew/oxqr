@@ -21,47 +21,57 @@ let exp_table, log_table =
   done;
   (exp, log)
 
-let polynomial_mult a b =
+let[@zero_alloc] polynomial_mult a b =
   if a = 0 || b = 0 then 0
   else
     let log_a = log_table.(a) in
     let log_b = log_table.(b) in
     exp_table.(log_a + log_b)
 
-let generate_generator_polynomial n =
-  (* Generate the generator polynomial for n error correction codewords *)
-  let poly = Array.create ~len:(n + 1) 0 in
+(* Precompute generator polynomials once so the lookup below is allocation-free. *)
+let generator_polynomials =
+  let max_n = 255 in
+  let table = Array.create ~len:(max_n + 1) [||] in
+  table.(0) <- [| 1 |];
+  let poly = Array.create ~len:(max_n + 1) 0 in
   poly.(0) <- 1;
-  for i = 0 to n - 1 do
+  let current_len = ref 1 in
+  for i = 0 to max_n - 1 do
     (* Multiply by (x - α^i) *)
-    for j = i + 1 downto 1 do
+    for j = !current_len downto 1 do
       poly.(j) <- polynomial_mult poly.(j) exp_table.(i) lxor poly.(j - 1)
     done;
-    poly.(0) <- polynomial_mult poly.(0) exp_table.(i)
+    poly.(0) <- polynomial_mult poly.(0) exp_table.(i);
+    Int.incr current_len;
+    table.(i + 1) <- Array.sub poly ~pos:0 ~len:!current_len
   done;
-  poly
+  table
 
-let generate_error_correction (data @ local) ec_count =
+(** Generate the generator polynomial for n error correction codewords *)
+let[@zero_alloc] generate_generator_polynomial n = generator_polynomials.(n)
+
+let remainder_scratch = Array.create ~len:50 0
+
+(** Generate error correction codewords for given data and number of ec
+    codewords *)
+let[@zero_alloc] generate_error_correction (data @ local) ec_count out_buf =
   let data_len = Bytes.length data in
   let generator = generate_generator_polynomial ec_count in
-  (* Initialize remainder with message padded by ec_count zeros *)
-  let remainder = Array.create ~len:(data_len + ec_count) 0 in
   (* Copy data into the beginning of remainder *)
   for i = 0 to data_len - 1 do
-    remainder.(i) <- Char.to_int (Bytes.get data i)
+    remainder_scratch.(i) <- Char.to_int (Bytes.get data i)
   done;
   (* Polynomial division *)
   for i = 0 to data_len - 1 do
-    let coef = remainder.(i) in
+    let coef = remainder_scratch.(i) in
     if coef <> 0 then
       for j = 0 to ec_count do
-        remainder.(i + j) <-
-          remainder.(i + j) lxor polynomial_mult generator.(ec_count - j) coef
+        remainder_scratch.(i + j) <-
+          remainder_scratch.(i + j)
+          lxor polynomial_mult generator.(ec_count - j) coef
       done
   done;
   (* Extract the last ec_count bytes as the error correction codewords *)
-  let result = Bytes.create ec_count in
   for i = 0 to ec_count - 1 do
-    Bytes.set result i (Char.of_int_exn remainder.(data_len + i))
-  done;
-  result
+    Bytes.set out_buf i (Char.of_int_exn remainder_scratch.(data_len + i))
+  done

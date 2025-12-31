@@ -28,9 +28,9 @@ let[@zero_alloc] rec encode_pairs (buf @ local) s len i =
 
 let[@zero_alloc] encode_alphanumeric_data buf s =
   let len = String.length s in
-  exclave_ encode_pairs buf s len 0
+  encode_pairs buf s len 0
 
-let add_terminator_and_padding (buf @ local) total_data_codewords =
+let[@zero_alloc] add_terminator_and_padding (buf @ local) total_data_codewords =
   (* Add terminator (0000, up to 4 bits) *)
   let bits_used = Bitbuf.bits_written buf in
   let max_bits = total_data_codewords * 8 in
@@ -52,29 +52,27 @@ let add_terminator_and_padding (buf @ local) total_data_codewords =
   add_padding bytes_used;
   ()
 
-let split_into_blocks data ec_info =
+let split_into_blocks (data @ local) ec_info =
   let g1_count = ec_info.Config.group1_blocks in
   let g1_size = ec_info.group1_data_codewords in
   let g2_count = ec_info.group2_blocks in
   let g2_size = ec_info.group2_data_codewords in
   let ec_per_block = ec_info.ec_codewords_per_block in
-  let blocks = ref [] in
-  let offset = ref 0 in
+  let blocks = stack_ (ref []) in
+  let offset = stack_ (ref 0) in
   (* Group 1 blocks *)
   for _ = 1 to g1_count do
     let block_data = Bytes.sub data ~pos:!offset ~len:g1_size in
-    let ec_data =
-      Reed_solomon.generate_error_correction block_data ec_per_block
-    in
+    let ec_data = Bytes.create ec_per_block in
+    Reed_solomon.generate_error_correction block_data ec_per_block ec_data;
     blocks := (block_data, ec_data) :: !blocks;
     offset := !offset + g1_size
   done;
   (* Group 2 blocks *)
   for _ = 1 to g2_count do
     let block_data = Bytes.sub data ~pos:!offset ~len:g2_size in
-    let ec_data =
-      Reed_solomon.generate_error_correction block_data ec_per_block
-    in
+    let ec_data = Bytes.create ec_per_block in
+    Reed_solomon.generate_error_correction block_data ec_per_block ec_data;
     blocks := (block_data, ec_data) :: !blocks;
     offset := !offset + g2_size
   done;
