@@ -1,5 +1,6 @@
 // Load js_of_ocaml module
 let generateQR = null;
+const ALPHANUMERIC_PATTERN = /^[0-9A-Z $%*+\-./:]+$/;
 
 async function initWasm() {
     try {
@@ -46,13 +47,26 @@ function displayQR(svgString) {
     output.classList.add('visible');
 }
 
+function clearOutput() {
+    document.getElementById('output').classList.remove('visible');
+}
+
+function isValidAlphanumeric(text) {
+    return ALPHANUMERIC_PATTERN.test(text);
+}
+
 // Generate QR code from current form values
 async function generateQRFromInputs() {
     hideError();
     const data = document.getElementById('data').value.trim();
     const ecl = document.getElementById('ecl').value;
     if (!data) {
-        document.getElementById('output').classList.remove('visible');
+        clearOutput();
+        return;
+    }
+    if (!isValidAlphanumeric(data)) {
+        clearOutput();
+        showError('Input must be alphanumeric (A-Z, 0-9, space, $%*+-./:)');
         return;
     }
     showLoading(true);
