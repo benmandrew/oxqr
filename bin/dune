@@ -1,6 +1,13 @@
 (executable
- (public_name oxqr)
+ (name wasm)
+ (modes wasm)
+ (libraries oxqr)
+ (flags
+  (:standard -w -32)))
+
+(executable
  (name main)
+ (public_name oxqr)
  (libraries oxqr)
  (flags
   (:standard -w -32)))

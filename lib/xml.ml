@@ -1,7 +1,7 @@
 open Base
 
 let qr_to_xml (t : Qr.t) =
-  let buf = Buffer.create 1024 in
+  let buf = Buffer.create 13000 in
   let width = t.width + 8 in
   Buffer.add_string buf
     (Printf.sprintf
@@ -20,5 +20,4 @@ let qr_to_xml (t : Qr.t) =
     done
   done;
   Buffer.add_string buf "</svg>\n";
-  Stdlib.Printf.printf "Buffer length: %d\n" (Buffer.length buf);
   Buffer.contents buf
