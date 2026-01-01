@@ -3,22 +3,15 @@ let generateQR = null;
 
 async function initWasm() {
     try {
-        // Load the js_of_ocaml compiled script
-        const script = document.createElement('script');
-        script.src = '../_build/default/bin/wasm.bc.js';
-        return new Promise((resolve, reject) => {
-            script.onload = () => {
-                // The module exports are available on the global object
-                if (window.generateQR) {
-                    generateQR = window.generateQR;
-                    resolve(true);
-                } else {
-                    reject(new Error('generateQR not found in module'));
-                }
-            };
-            script.onerror = () => reject(new Error('Failed to load oxqr.js'));
-            document.head.appendChild(script);
-        });
+        const mod = await import('../_build/default/bin/web.bc.js');
+        if (typeof mod.default === 'function') {
+            await mod.default();
+        }
+        if (window.generateQR) {
+            generateQR = window.generateQR;
+            return true;
+        }
+        throw new Error('generateQR not found in module');
     } catch (error) {
         console.error('Failed to load module:', error);
         return false;

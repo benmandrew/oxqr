@@ -1,7 +1,10 @@
 (executable
- (name wasm)
+ (name web)
  (modes js)
  (libraries oxqr js_of_ocaml)
+ (js_of_ocaml
+  (flags
+   (:standard --effects=cps)))
  (flags
   (:standard -w -32)))
 

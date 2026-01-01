@@ -4,10 +4,7 @@ open Base
 let run data ecl =
   let qr = Encoding.generate_qr data ecl in
   let qr_string = Qr.to_unicode_string qr in
-  Out_channel.output_string Out_channel.stdout qr_string;
-  let out_channel = Out_channel.open_text "qr_code.svg" in
-  Xml.qr_to_xml qr |> Out_channel.output_string out_channel;
-  Out_channel.close out_channel
+  Out_channel.output_string Out_channel.stdout qr_string
 
 let string_of_ecl = function
   | Config.ECL.L -> "L"

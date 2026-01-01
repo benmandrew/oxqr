@@ -4,7 +4,6 @@ open Js_of_ocaml
 
 (* Generate QR code as SVG *)
 let generate_qr_svg data_js ecl_str_js =
-  (* Convert JavaScript strings to OCaml strings *)
   let data = Js.to_string data_js in
   let ecl_str = Js.to_string ecl_str_js in
 
@@ -18,7 +17,6 @@ let generate_qr_svg data_js ecl_str_js =
   in
   let qr = Encoding.generate_qr data ecl in
   let result = Xml.qr_to_xml qr in
-  (* Convert OCaml string back to JavaScript string *)
   Js.string result
 
 (* Export both functions for use in js_of_ocaml *)
