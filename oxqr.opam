@@ -10,9 +10,10 @@ homepage: "https://github.com/benmandrew/oxqr"
 doc: "https://url/to/documentation"
 bug-reports: "https://github.com/benmandrew/oxqr/issues"
 depends: [
-  "dune" {>= "3.20"}
   "ocaml"
+  "dune" {>= "3.20"}
   "ppx_expect"
+  "js_of_ocaml"
   "odoc" {with-doc}
 ]
 build: [
