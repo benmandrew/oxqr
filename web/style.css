@@ -36,7 +36,27 @@ body {
 h1 {
     margin-bottom: 10px;
     font-size: 28px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+h1::before,
+h1::after {
+    content: "";
+    flex: 1;
+    height: 28px;
+    background: repeating-linear-gradient(
+        90deg,
+        var(--text) 0px,
+        var(--text) 4px,
+        transparent 4px,
+        transparent 8px,
+        var(--text) 8px,
+        var(--text) 12px,
+        transparent 12px,
+        transparent 16px
+    );
 }
 
 .subtitle {
@@ -114,7 +134,8 @@ button {
 }
 
 .qr-display {
-    background: var(--panel);
+    background: #FFFFFF;
+    border-radius: 12px;
     text-align: center;
     overflow-x: auto;
 }
@@ -122,6 +143,44 @@ button {
 .qr-display svg {
     max-width: 100%;
     height: auto;
+}
+
+.download-row {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.download-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    background: var(--panel);
+    color: var(--text);
+    font-weight: 700;
+    text-decoration: none;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transition: background 0.2s, transform 0.1s, opacity 0.2s;
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.download-btn.visible {
+    opacity: 1;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.download-btn.visible:hover {
+    background: var(--bg);
+}
+
+.download-btn.visible:active {
+    transform: translateY(1px);
 }
 
 .info-box {

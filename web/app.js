@@ -1,5 +1,6 @@
 // Load js_of_ocaml module
 let generateQR = null;
+let currentDownloadUrl = null;
 const ALPHANUMERIC_PATTERN = /^[0-9A-Z $%*+\-./:]+$/;
 
 async function initWasm() {
@@ -45,14 +46,37 @@ function displayQR(svgString) {
     // Inject SVG directly
     qrDisplay.innerHTML = svgString;
     output.classList.add('visible');
+    updateDownloadLink(svgString);
 }
 
 function clearOutput() {
     document.getElementById('output').classList.remove('visible');
+    updateDownloadLink(null);
 }
 
 function isValidAlphanumeric(text) {
     return ALPHANUMERIC_PATTERN.test(text);
+}
+
+function updateDownloadLink(svgString) {
+    const btn = document.getElementById('downloadBtn');
+    // Revoke any previous object URL to avoid leaks
+    if (currentDownloadUrl) {
+        URL.revokeObjectURL(currentDownloadUrl);
+        currentDownloadUrl = null;
+    }
+    if (!svgString) {
+        btn.classList.remove('visible');
+        btn.removeAttribute('href');
+        btn.setAttribute('aria-disabled', 'true');
+        return;
+    }
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    currentDownloadUrl = URL.createObjectURL(blob);
+    btn.href = currentDownloadUrl;
+    btn.download = 'qr.svg';
+    btn.classList.add('visible');
+    btn.removeAttribute('aria-disabled');
 }
 
 // Generate QR code from current form values
@@ -105,7 +129,7 @@ document.getElementById('ecl').addEventListener('change', () => {
 });
 
 document.getElementById('qrForm').addEventListener('reset', () => {
-    document.getElementById('output').classList.remove('visible');
+    clearOutput();
     hideError();
 });
 

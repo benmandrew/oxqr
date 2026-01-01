@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃𝄃𝄂𝄂𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃𝄃𝄂𝄂 OxQR 𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃𝄃𝄂𝄂𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃𝄃𝄂𝄂</h1>
+        <h1>OxQR</h1>
         <div class="subtitle">Generate QR codes. Restricted to alphanumeric text (A-Z, 0-9, space, $%*+-./:)</div>
         <form id="qrForm">
             <div class="form-group">
@@ -35,6 +35,9 @@
         <div class="error-message" id="errorMessage"></div>
         <div class="output" id="output">
             <div class="qr-display" id="qrDisplay"></div>
+            <div class="download-row">
+                <a id="downloadBtn" class="download-btn" aria-disabled="true">Download SVG</a>
+            </div>
         </div>
     </div>
     <script src="app.js"></script>
