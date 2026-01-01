@@ -1,73 +1,25 @@
 open Oxqr
 open Base
+open Js_of_ocaml
 
-let run data ecl =
+(* Generate QR code as SVG *)
+let generate_qr_svg data_js ecl_str_js =
+  (* Convert JavaScript strings to OCaml strings *)
+  let data = Js.to_string data_js in
+  let ecl_str = Js.to_string ecl_str_js in
+
+  let ecl =
+    match String.uppercase ecl_str with
+    | "L" -> Config.ECL.L
+    | "M" -> Config.ECL.M
+    | "Q" -> Config.ECL.Q
+    | "H" -> Config.ECL.H
+    | _ -> Config.ECL.M (* Default to M if invalid *)
+  in
   let qr = Encoding.generate_qr data ecl in
-  let qr_string = Qr.to_unicode_string qr in
-  Out_channel.output_string Out_channel.stdout qr_string;
-  let out_channel = Out_channel.open_text "qr_code.svg" in
-  Xml.qr_to_xml qr |> Out_channel.output_string out_channel;
-  Out_channel.close out_channel
+  let result = Xml.qr_to_xml qr in
+  (* Convert OCaml string back to JavaScript string *)
+  Js.string result
 
-let string_of_ecl = function
-  | Config.ECL.L -> "L"
-  | M -> "M"
-  | Q -> "Q"
-  | H -> "H"
-
-let parse_ecl s =
-  match String.uppercase s with
-  | "L" -> Config.ECL.L
-  | "M" -> Config.ECL.M
-  | "Q" -> Config.ECL.Q
-  | "H" -> Config.ECL.H
-  | _ ->
-      Out_channel.output_string Out_channel.stderr
-        (Printf.sprintf "Error: ECL must be one of L, M, Q, H (got '%s')\n" s);
-      Stdlib.exit 2
-
-let print_help () =
-  Out_channel.output_string Out_channel.stdout "Usage: oxqr [OPTIONS] DATA\n";
-  Out_channel.output_string Out_channel.stdout
-    "\nGenerate a QR code from alphanumeric input.\n";
-  Out_channel.output_string Out_channel.stdout "\nOPTIONS:\n";
-  Out_channel.output_string Out_channel.stdout
-    "  --ecl ECL       Error correction level (L|M|Q|H). Default: M.\n";
-  Out_channel.output_string Out_channel.stdout
-    "  -h, --help      Show this help message.\n"
-
-let rec parse_args argv idx data ecl =
-  if idx >= Array.length argv then (data, ecl)
-  else
-    match argv.(idx) with
-    | "-h" | "--help" ->
-        print_help ();
-        Stdlib.exit 0
-    | "--ecl" ->
-        if idx + 1 >= Array.length argv then (
-          Out_channel.output_string Out_channel.stderr
-            "Error: --ecl requires an argument\n";
-          Stdlib.exit 2)
-        else
-          let new_ecl = parse_ecl argv.(idx + 1) in
-          parse_args argv (idx + 2) data new_ecl
-    | arg when String.is_prefix arg ~prefix:"-" ->
-        Out_channel.output_string Out_channel.stderr
-          (Printf.sprintf "Error: Unknown option '%s'\n" arg);
-        Stdlib.exit 2
-    | arg ->
-        if Option.is_some data then (
-          Out_channel.output_string Out_channel.stderr
-            "Error: Too many positional arguments\n";
-          Stdlib.exit 2)
-        else parse_args argv (idx + 1) (Some arg) ecl
-
-let () =
-  let data, ecl = parse_args (Sys.get_argv ()) 1 None Config.ECL.M in
-  match data with
-  | Some d -> run d ecl
-  | None ->
-      Out_channel.output_string Out_channel.stderr
-        "Error: DATA argument is required\n";
-      print_help ();
-      Stdlib.exit 2
+(* Export both functions for use in js_of_ocaml *)
+let () = Js.export "generateQR" (Js.wrap_callback generate_qr_svg)

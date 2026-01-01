@@ -5,8 +5,9 @@ let qr_to_xml (t : Qr.t) =
   let width = t.width + 8 in
   Buffer.add_string buf
     (Printf.sprintf
-       "<svg version=\"1.1\" width=\"%d\" height=\"%d\" \
-        xmlns=\"http://www.w3.org/2000/svg\">\n\
+       "<svg version=\"1.1\" viewBox=\"0 0 %d %d\" \
+        xmlns=\"http://www.w3.org/2000/svg\" preserveAspectRatio=\"xMidYMid \
+        meet\">\n\
         <rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" fill=\"white\" />\n"
        width width width width);
   for y = 0 to t.width - 1 do

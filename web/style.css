@@ -1,0 +1,158 @@
+:root {
+  --bg: #414361;
+  --panel: #2A2D43;
+  --muted: #94a3b8;
+  --accent: #FFA9E7;
+  --text: #FFEBF9;
+  --mono: "Fira Code", Menlo, Monaco, monospace;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.container {
+    background: var(--panel);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 100%;
+    padding: 40px;
+}
+
+h1 {
+    margin-bottom: 10px;
+    font-size: 28px;
+    text-align: center;
+}
+
+.subtitle {
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+input[type="text"],
+select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--panel);
+    background-color: var(--bg);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+    font-family: inherit;
+}
+
+input[type="text"]:focus,
+select:focus {
+    outline: none;
+    border-color: var(--bg);
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+button {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-generate {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.btn-generate:hover {
+    background: var(--panel);
+}
+
+.btn-generate:active {
+    transform: translateY(0);
+}
+
+.output {
+    margin-top: 40px;
+    display: none;
+}
+
+.output.visible {
+    display: block;
+}
+
+.qr-display {
+    background: var(--panel);
+    text-align: center;
+    overflow-x: auto;
+}
+
+.qr-display svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.info-box {
+    background: #f0f7ff;
+    border-left: 4px solid #667eea;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #333;
+}
+
+.error-message {
+    background: #fee;
+    color: #c33;
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 20px;
+    display: none;
+}
+
+.error-message.visible {
+    display: block;
+}
+
+.loading {
+    display: none;
+    text-align: center;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.loading.visible {
+    display: block;
+}

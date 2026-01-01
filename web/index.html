@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxQR - QR Code Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container"></div>
+        <h1>𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃𝄃𝄂𝄂𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃𝄃𝄂𝄂 OxQR 𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃𝄃𝄂𝄂𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃𝄃𝄂𝄂</h1>
+        <div class="subtitle">Generate QR codes. Restricted to alphanumeric text (A-Z, 0-9, space, $%*+-./:)</div>
+        <form id="qrForm">
+            <div class="form-group">
+                <label for="data">Data to encode</label>
+                <input
+                    type="text"
+                    id="data"
+                    placeholder="Enter alphanumeric text (A-Z, 0-9, space, $%*+-./:)"
+                    maxlength="2953"
+                >
+            </div>
+            <div class="form-group">
+                <label for="ecl">Error correction level</label>
+                <select id="ecl">
+                    <option value="L">L - ~7% recovery</option>
+                    <option value="M" selected>M - ~15% recovery</option>
+                    <option value="Q">Q - ~25% recovery</option>
+                    <option value="H">H - ~30% recovery</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-generate">Generate QR Code</button>
+        </form>
+        <div class="loading" id="loading">Generating...</div>
+        <div class="error-message" id="errorMessage"></div>
+        <div class="output" id="output">
+            <div class="qr-display" id="qrDisplay"></div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

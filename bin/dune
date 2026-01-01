@@ -1,7 +1,7 @@
 (executable
  (name wasm)
- (modes wasm)
- (libraries oxqr)
+ (modes js)
+ (libraries oxqr js_of_ocaml)
  (flags
   (:standard -w -32)))
 
