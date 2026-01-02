@@ -9,34 +9,40 @@
 <body>
     <div class="container">
         <h1>OxQR</h1>
-        <div class="subtitle">Generate QR codes. Restricted to alphanumeric text (A-Z, 0-9, space, $%*+-./:)</div>
-        <form id="qrForm">
-            <div class="form-group">
-                <label for="data">Data to encode</label>
-                <input
-                    type="text"
-                    id="data"
-                    placeholder="Enter alphanumeric text (A-Z, 0-9, space, $%*+-./:)"
-                    maxlength="2953"
-                    value="HELLO WORLD"
-                >
+        <div class="content-wrapper">
+            <div class="form-section">
+                <div class="subtitle">Generate QR codes. Restricted to alphanumeric text (A-Z, 0-9, space, $%*+-./:)</div>
+                <form id="qrForm">
+                    <div class="form-group">
+                        <label for="data">Data to encode</label>
+                        <input
+                            type="text"
+                            id="data"
+                            placeholder="Enter alphanumeric text (A-Z, 0-9, space, $%*+-./:)"
+                            maxlength="2953"
+                            value="HELLO WORLD"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="ecl">Error correction level</label>
+                        <select id="ecl">
+                            <option value="L">L - ~7% recovery</option>
+                            <option value="M" selected>M - ~15% recovery</option>
+                            <option value="Q">Q - ~25% recovery</option>
+                            <option value="H">H - ~30% recovery</option>
+                        </select>
+                    </div>
+                </form>
+                <div class="loading" id="loading">Generating...</div>
+                <div class="error-message" id="errorMessage"></div>
             </div>
-            <div class="form-group">
-                <label for="ecl">Error correction level</label>
-                <select id="ecl">
-                    <option value="L">L - ~7% recovery</option>
-                    <option value="M" selected>M - ~15% recovery</option>
-                    <option value="Q">Q - ~25% recovery</option>
-                    <option value="H">H - ~30% recovery</option>
-                </select>
-            </div>
-        </form>
-        <div class="loading" id="loading">Generating...</div>
-        <div class="error-message" id="errorMessage"></div>
-        <div class="output" id="output">
-            <div class="qr-display" id="qrDisplay"></div>
-            <div class="download-row">
-                <a id="downloadBtn" class="download-btn" aria-disabled="true">Download SVG</a>
+            <div class="output-section">
+                <div class="output" id="output">
+                    <div class="qr-display" id="qrDisplay"></div>
+                    <div class="download-row">
+                        <a id="downloadBtn" class="download-btn" aria-disabled="true">Download SVG</a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

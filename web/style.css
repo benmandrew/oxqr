@@ -28,9 +28,11 @@ body {
     background: var(--panel);
     border-radius: 12px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    max-width: 600px;
+    max-width: 1200px;
     width: 100%;
     padding: 40px;
+    display: flex;
+    flex-direction: column;
 }
 
 h1 {
@@ -60,8 +62,38 @@ h1::after {
 }
 
 .subtitle {
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     font-size: 14px;
+}
+
+.content-wrapper {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+}
+
+.form-section {
+    flex: 1;
+    min-width: 0;
+}
+
+.output-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    .content-wrapper {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .output-section {
+        width: 100%;
+    }
 }
 
 .form-group {
@@ -125,6 +157,7 @@ button {
 }
 
 .output {
+    width: 100%;
     margin-top: 40px;
     display: none;
 }
@@ -134,14 +167,17 @@ button {
 }
 
 .qr-display {
+    width: 100%;
     background: #FFFFFF;
     border-radius: 12px;
     text-align: center;
     overflow-x: auto;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .qr-display svg {
-    max-width: 100%;
+    width: 100%;
     height: auto;
 }
 
