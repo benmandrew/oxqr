@@ -2,29 +2,31 @@ open Base
 
 type t = { buf : bytes; width : int }
 
-let size version = ((version - 1) * 4) + 21
+let[@zero_alloc] size version = ((version - 1) * 4) + 21
 
 let make ~version =
   let size = size version in
   { buf = Bytes.make (size * size) '\000'; width = size }
 
-let set_module t x y value =
+let[@zero_alloc] set_module (t @ local) x y value =
   if x >= 0 && x < t.width && y >= 0 && y < t.width then
     Bytes.set t.buf ((y * t.width) + x) value
 
-let place_finders t =
-  let positions = [ (0, 0); (t.width - 7, 0); (0, t.width - 7) ] in
-  List.iter positions ~f:(fun (dx, dy) ->
-      for i = 0 to 6 do
-        for j = 0 to 6 do
-          let is_border = i = 0 || i = 6 || j = 0 || j = 6 in
-          let is_inner = i >= 2 && i <= 4 && j >= 2 && j <= 4 in
-          let value = if is_border || is_inner then '\001' else '\000' in
-          set_module t (dx + i) (dy + j) value
-        done
-      done)
+let[@zero_alloc] place_finders (t @ local) =
+  let positions = stack_ [ (0, 0); (t.width - 7, 0); (0, t.width - 7) ] in
+  for i = 0 to List.length positions - 1 do
+    let dx, dy = List.nth_exn__local positions i in
+    for i = 0 to 6 do
+      for j = 0 to 6 do
+        let is_border = i = 0 || i = 6 || j = 0 || j = 6 in
+        let is_inner = i >= 2 && i <= 4 && j >= 2 && j <= 4 in
+        let value = if is_border || is_inner then '\001' else '\000' in
+        set_module t (dx + i) (dy + j) value
+      done
+    done
+  done
 
-let place_separators t =
+let[@zero_alloc] place_separators (t @ local) =
   (* Around top-left finder *)
   for i = 0 to 7 do
     set_module t i 7 '\000';
@@ -41,7 +43,7 @@ let place_separators t =
     set_module t 7 (t.width - 8 + i) '\000'
   done
 
-let place_timing_patterns t =
+let[@zero_alloc] place_timing_patterns (t @ local) =
   for i = 8 to t.width - 9 do
     let value = if (i - 8) % 2 = 0 then '\001' else '\000' in
     set_module t i 6 value;
@@ -92,54 +94,79 @@ let alignment_coords =
     [ 6; 30; 58; 86; 114; 142; 170 ];
   |]
 
-let place_alignment_patterns t version =
+let[@zero_alloc] place_alignment_patterns (t @ local) version =
   if version < 2 then ()
   else
     let coords = Array.get alignment_coords (version - 1) in
-    (* Create Cartesian product of coordinates *)
-    List.iter coords ~f:(fun cx ->
-        List.iter coords ~f:(fun cy ->
-            (* Don't place over finders *)
-            if
-              not
-                ((cx < 9 && cy < 9)
-                || (cx >= t.width - 8 && cy < 9)
-                || (cx < 9 && cy >= t.width - 8))
-            then
-              (* Draw 5x5 alignment pattern centered at (cx, cy) *)
-              for i = -2 to 2 do
-                for j = -2 to 2 do
-                  let is_border = i = -2 || i = 2 || j = -2 || j = 2 in
-                  let is_center = i = 0 && j = 0 in
-                  let value =
-                    if is_border || is_center then '\001' else '\000'
-                  in
-                  set_module t (cx + i) (cy + j) value
-                done
-              done))
+    (* Imperative cartesian product to avoid allocating closures *)
+    let cx_list = ref coords in
+    while not (List.is_empty !cx_list) do
+      match !cx_list with
+      | [] -> ()
+      | cx :: rest_cx ->
+          let cy_list = ref coords in
+          while not (List.is_empty !cy_list) do
+            match !cy_list with
+            | [] -> ()
+            | cy :: rest_cy ->
+                if
+                  not
+                    ((cx < 9 && cy < 9)
+                    || (cx >= t.width - 8 && cy < 9)
+                    || (cx < 9 && cy >= t.width - 8))
+                then
+                  for i = -2 to 2 do
+                    for j = -2 to 2 do
+                      let is_border = i = -2 || i = 2 || j = -2 || j = 2 in
+                      let is_center = i = 0 && j = 0 in
+                      let value =
+                        if is_border || is_center then '\001' else '\000'
+                      in
+                      set_module t (cx + i) (cy + j) value
+                    done
+                  done;
+                cy_list := rest_cy
+          done;
+          cx_list := rest_cx
+    done
 
-let place_dark_module t version =
+let[@zero_alloc] place_dark_module (t @ local) version =
   let y = (4 * version) + 9 in
   set_module t 8 y '\001'
 
-let alignment_coords_for_version version =
+let[@zero_alloc] alignment_coords_for_version version =
   if version >= 1 && version <= 40 then Array.get alignment_coords (version - 1)
   else []
 
-let is_in_alignment_pattern t x y version =
+let[@zero_alloc] is_in_alignment_pattern (t @ local) x y version =
   let coords = alignment_coords_for_version version in
-  List.exists coords ~f:(fun cx ->
-      List.exists coords ~f:(fun cy ->
-          (* Check if (x, y) is within the 5x5 alignment pattern centered at (cx, cy) *)
-          abs (x - cx) <= 2
-          && abs (y - cy) <= 2
-          && not
-               ((* Don't consider alignment patterns that overlap finders *)
-                (cx < 9 && cy < 9)
-               || (cx >= t.width - 8 && cy < 9)
-               || (cx < 9 && cy >= t.width - 8))))
+  let found = ref false in
+  let cx_list = ref coords in
+  while (not !found) && not (List.is_empty !cx_list) do
+    match !cx_list with
+    | [] -> ()
+    | cx :: rest_cx ->
+        let cy_list = ref coords in
+        while (not !found) && not (List.is_empty !cy_list) do
+          match !cy_list with
+          | [] -> ()
+          | cy :: rest_cy ->
+              if
+                abs (x - cx) <= 2
+                && abs (y - cy) <= 2
+                && not
+                     ((* Don't consider alignment patterns that overlap finders *)
+                      (cx < 9 && cy < 9)
+                     || (cx >= t.width - 8 && cy < 9)
+                     || (cx < 9 && cy >= t.width - 8))
+              then found := true;
+              cy_list := rest_cy
+        done;
+        cx_list := rest_cx
+  done;
+  !found
 
-let is_reserved t x y version =
+let[@zero_alloc] is_reserved (t @ local) x y version =
   let in_top_left = x <= 8 && y <= 8 in
   let in_top_right = x >= t.width - 8 && y <= 8 in
   let in_bottom_left = x <= 8 && y >= t.width - 8 in
@@ -154,7 +181,7 @@ let is_reserved t x y version =
   || is_in_alignment_pattern t x y version
   || on_format_info
 
-let place_data t data data_len version =
+let[@zero_alloc] place_data (t @ local) data data_len version =
   let bit_pos = ref 0 in
   let data_bits = data_len * 8 in
   (* Scan right-to-left in 2-column strips, alternating vertical direction per spec *)
@@ -198,20 +225,21 @@ let place_data t data data_len version =
       upward := not !upward)
   done
 
-let place_pattern_modules t version =
+let[@zero_alloc] place_pattern_modules (t @ local) version =
   place_finders t;
   place_separators t;
   place_timing_patterns t;
   place_alignment_patterns t version;
   place_dark_module t version
 
-let ecl_format_bits = function
+let[@zero_alloc] ecl_format_bits (ecl @ local) =
+  match ecl with
   | Config.ECL.L -> 0b01
   | Config.ECL.M -> 0b00
   | Config.ECL.Q -> 0b11
   | Config.ECL.H -> 0b10
 
-let compute_format_bits ecl mask_pattern =
+let[@zero_alloc] compute_format_bits (ecl @ local) mask_pattern =
   (* Build 15-bit format string: 5 bits data (ECL||mask) + 10-bit BCH *)
   let data = (ecl_format_bits ecl lsl 3) lor mask_pattern in
   let v = ref (data lsl 10) in
@@ -223,7 +251,7 @@ let compute_format_bits ecl mask_pattern =
   let raw = (data lsl 10) lor bch in
   raw lxor 0x5412 (* apply mask per spec *)
 
-let place_format_info t ~ecl ~mask_pattern =
+let[@zero_alloc] place_format_info (t @ local) ~ecl ~mask_pattern =
   let bits = compute_format_bits ecl mask_pattern in
   let bit i = if (bits lsr i) land 1 = 1 then '\001' else '\000' in
   (* First copy around top-left finder (bit0 is LSB) *)
@@ -260,7 +288,7 @@ let place_format_info t ~ecl ~mask_pattern =
   set_module t 8 (w - 2) (bit 13);
   set_module t 8 (w - 1) (bit 14)
 
-let apply_mask_pattern t =
+let[@zero_alloc] apply_mask_pattern (t @ local) =
   for y = 0 to t.width - 1 do
     for x = 0 to t.width - 1 do
       if not (is_reserved t x y 1) then
@@ -274,7 +302,7 @@ let apply_mask_pattern t =
     done
   done
 
-let to_unicode_string t =
+let to_unicode_string (t @ local) =
   let rtrim s =
     let rec find i =
       if i < 0 then ""
