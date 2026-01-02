@@ -9,9 +9,9 @@ type t = { version : int; ecl : ECL.t }
 
 val make : version:int -> ecl:ECL.t -> t
 val compare : t -> t -> int
-val char_count_indicator_length : t -> int
-val alphanumeric_encode : char -> int
-val alphanumeric_encode_res : char -> local_ (int, string) result
+val char_count_indicator_length : local_ t -> int [@@zero_alloc]
+val alphanumeric_encode : char -> int [@@zero_alloc]
+val alphanumeric_encode_res : char -> local_ (int, string) result [@@zero_alloc]
 
 type ec_info = {
   ec_codewords_per_block : int;
@@ -23,5 +23,5 @@ type ec_info = {
 
 val mode_indicator_length : int
 val mode_indicator : int
-val get_config : string -> ECL.t -> t
-val get_ec_info : t -> ec_info
+val get_ec_info : local_ t -> local_ ec_info [@@zero_alloc]
+val get_config : string -> local_ ECL.t -> local_ t [@@zero_alloc]

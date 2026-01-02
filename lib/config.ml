@@ -1,11 +1,22 @@
 open Base
 
 module ECL = struct
-  type t = L | M | Q | H [@@deriving sexp_of, compare, hash]
+  type t = L | M | Q | H [@@deriving sexp_of, compare, equal, hash]
+
+  let equal__local (a @ local) (b @ local) =
+    match (a, b) with
+    | L, L -> true
+    | M, M -> true
+    | Q, Q -> true
+    | H, H -> true
+    | _, _ -> false
 end
 
 module T = struct
-  type t = { version : int; ecl : ECL.t } [@@deriving sexp_of, compare, hash]
+  type t = { version : int; ecl : ECL.t }
+  [@@deriving sexp_of, compare, equal, hash]
+
+  let equal__local a b = a.version = b.version && ECL.equal__local a.ecl b.ecl
 end
 
 include T
@@ -18,7 +29,7 @@ let make ~version ~(ecl @ local) =
   assert (version >= 1 && version <= 40);
   { version; ecl }
 
-let[@zero_alloc] char_count_indicator_length t =
+let[@zero_alloc] char_count_indicator_length (t @ local) =
   match t.version with
   | v when v >= 1 && v <= 9 -> 9
   | v when v >= 10 && v <= 26 -> 11
@@ -65,9 +76,8 @@ type ec_info = {
 
 (* Alphanumeric mode *)
 let capacity_table =
-  let hash_table = Hashtbl.create (module T) in
-  let add_entry (version, ecl, capacity) =
-    Hashtbl.set hash_table ~key:{ version; ecl } ~data:capacity
+  let add_entry assoc_list (version, ecl, capacity) =
+    List.Assoc.add assoc_list { version; ecl } capacity ~equal:T.equal
   in
   let open ECL in
   let entries =
@@ -274,22 +284,22 @@ let capacity_table =
       (40, H, 1852);
     ]
   in
-  List.iter entries ~f:add_entry;
-  hash_table
+  List.fold entries ~init:[] ~f:add_entry
 
 let ec_table =
-  let hash_table = Hashtbl.create (module T) in
-  let add_entry
+  let add_entry assoc_list
       (version, ecl, ec_per_block, g1_blocks, g1_data, g2_blocks, g2_data) =
-    Hashtbl.set hash_table ~key:{ version; ecl }
-      ~data:
-        {
-          ec_codewords_per_block = ec_per_block;
-          group1_blocks = g1_blocks;
-          group1_data_codewords = g1_data;
-          group2_blocks = g2_blocks;
-          group2_data_codewords = g2_data;
-        }
+    let key = { version; ecl } in
+    let data =
+      {
+        ec_codewords_per_block = ec_per_block;
+        group1_blocks = g1_blocks;
+        group1_data_codewords = g1_data;
+        group2_blocks = g2_blocks;
+        group2_data_codewords = g2_data;
+      }
+    in
+    List.Assoc.add assoc_list key data ~equal:T.equal
   in
   let open ECL in
   let entries =
@@ -496,21 +506,24 @@ let ec_table =
       (40, H, 30, 20, 15, 61, 16);
     ]
   in
-  List.iter entries ~f:add_entry;
-  hash_table
+  List.fold entries ~init:[] ~f:add_entry
 
-let get_capacity config = Hashtbl.find_exn capacity_table config
-let get_ec_info config = Hashtbl.find_exn ec_table config
+let[@zero_alloc] get_capacity (config @ local) = exclave_
+  List.Assoc.find_exn__local capacity_table ~equal:T.equal__local config
+
+let[@zero_alloc] get_ec_info (config @ local) = exclave_
+  List.Assoc.find_exn__local ec_table ~equal:T.equal__local config
+
 let mode_indicator_length = 4
 let mode_indicator = 0b0010
 
-let rec find_version (v @ local) (ecl @ local) (length @ local) =
+let[@zero_alloc] rec find_version (v @ local) (ecl @ local) (length @ local) =
   if v > 40 then raise (Invalid_argument "Data too long to encode in QR code")
-  else
-    let config = make ~version:v ~ecl in
+  else exclave_
+    let config = make_local ~version:v ~ecl in
     let capacity = get_capacity config in
     if length <= capacity then config else find_version (v + 1) ecl length
 
-let get_config s (ecl @ local) =
+let[@zero_alloc] get_config s (ecl @ local) =
   let length = String.length s in
-  find_version 1 ecl length
+  exclave_ find_version 1 ecl length

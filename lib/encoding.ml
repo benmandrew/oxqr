@@ -147,7 +147,6 @@ let encode s (ecl @ local) =
     (ec_info.group1_blocks * ec_info.group1_data_codewords)
     + (ec_info.group2_blocks * ec_info.group2_data_codewords)
   in
-  exclave_
   let buf = Bitbuf.create total_data_codewords in
   Bitbuf.write_bits_msb buf Config.mode_indicator Config.mode_indicator_length;
   let cci_len = Config.char_count_indicator_length config in

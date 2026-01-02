@@ -5,7 +5,7 @@ type t = {
   mutable bit_pos : int; (* number of bits written so far *)
 }
 
-let create len_bytes = exclave_
+let create len_bytes =
   { buf = (Bytes.make [@alloc stack]) len_bytes '\000'; bit_pos = 0 }
 
 let capacity_bits (t @ local) = Bytes.length t.buf * 8

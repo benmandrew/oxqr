@@ -2,7 +2,7 @@
 
 type t
 
-val create : int -> local_ t
+val create : int -> t
 (** [create len_bytes] allocates a zeroed buffer of [len_bytes]. *)
 
 val capacity_bits : local_ t -> int [@@zero_alloc]
