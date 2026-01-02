@@ -18,9 +18,10 @@ module Arena = struct
     remainder_scratch : int array;
     interleave_buffer : Bytes.t;
     bitbuf_storage : Bytes.t;
+    qr : Qr.t option;
   }
 
-  let create () =
+  let create qr_version =
     {
       block_data_pos = Array.create ~len:max_blocks 0;
       block_data_len = Array.create ~len:max_blocks 0;
@@ -30,10 +31,12 @@ module Arena = struct
       remainder_scratch = Array.create ~len:512 0;
       interleave_buffer = Bytes.make max_total_bytes '\000';
       bitbuf_storage = Bytes.make max_total_bytes '\000';
+      qr = Option.map qr_version ~f:(fun version -> Qr.make ~version);
     }
 
   let get_qr_buffer (arena @ local) = arena.bitbuf_storage
   let get_remainder_scratch (arena @ local) = arena.remainder_scratch
+  let get_qr_exn (arena @ local) = exclave_ Option.value_exn__local arena.qr
 end
 
 let[@zero_alloc] rec encode_pairs (buf @ local) s len i =
@@ -165,7 +168,7 @@ let[@zero_alloc] interleave_blocks arena block_count ec_info =
   let _ = interleave_ec 0 after_data in
   out
 
-let encode arena s (ecl @ local) =
+let[@zero_alloc] encode arena s (ecl @ local) =
   let config = Config.get_config s ecl in
   let ec_info = Config.get_ec_info config in
   let total_data_codewords =
@@ -195,3 +198,17 @@ let generate_qr arena s ecl =
   Qr.place_data qr final_data config.version;
   Qr.apply_mask_pattern qr;
   qr
+
+let[@zero_alloc] generate_qr_stack arena s ecl =
+  let config = Config.get_config s ecl in
+  let ec_info = Config.get_ec_info config in
+  let _ = encode arena s ecl in
+  let block_count = split_into_blocks arena ec_info in
+  let final_data = interleave_blocks arena block_count ec_info in
+  let qr = Arena.get_qr_exn arena in
+  Qr.place_pattern_modules qr config.version;
+  let mask_pattern = 0 in
+  Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern;
+  Qr.place_data qr final_data config.version;
+  Qr.apply_mask_pattern qr;
+  ()

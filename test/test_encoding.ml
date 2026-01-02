@@ -3,7 +3,7 @@ open Base
 
 (* Example from https://www.thonky.com/qr-code-tutorial/error-correction-coding#use-the-terms-of-the-remainder-as-the-error-correction-codewords *)
 let%expect_test "test_error_correction_generation" =
-  let arena = Encoding.Arena.create () in
+  let arena = Encoding.Arena.create None in
   let total_data_codewords = Encoding.encode arena "HELLO WORLD" Config.ECL.M in
   let message_bytes = Encoding.Arena.get_qr_buffer arena in
   for i = 0 to total_data_codewords - 1 do
