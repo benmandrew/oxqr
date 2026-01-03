@@ -15,6 +15,13 @@
  (flags
   (:standard -w -32)))
 
+(executable
+ (name verify)
+ (public_name verify)
+ (libraries oxqr runtime_events)
+ (flags
+  (:standard -w -32)))
+
 (env
  (release
   (flags
