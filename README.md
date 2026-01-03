@@ -2,8 +2,9 @@
 
 QR code generator using OxCaml, a set of compiler extensions to OCaml from Jane Street. These give the programmer control over how data is allocated in the program, for example preferring stack to heap allocation to reduce pressure on the garbage collector.
 
-This program can be run natively as a CLI tool, or in the browser by transpiling to JavaScript with [`js_of_ocaml`](https://github.com/ocsigen/js_of_ocaml).
+The QR code generation is *zero-alloc*, which means that the generation does not allocate any memory on the heap, only on the stack. Scratch memory used during the generation is pre-allocated on the heap beforehand in an arena, and can be reused for the generation of multiple QR codes. This behaviour is enforced by the compiler using the `[@zero_alloc]` annotation on functions.
 
+This program can be run natively as a CLI tool, or in the browser by transpiling to JavaScript with [`js_of_ocaml`](https://github.com/ocsigen/js_of_ocaml).
 
 ![Screenshot](doc/screenshot.png)
 
