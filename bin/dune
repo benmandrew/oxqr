@@ -11,6 +11,7 @@
 (executable
  (name main)
  (public_name oxqr)
+ (package oxqr)
  (libraries oxqr)
  (flags
   (:standard -w -32)))
@@ -18,7 +19,8 @@
 (executable
  (name verify)
  (public_name verify)
- (libraries oxqr runtime_events)
+ (package oxqr)
+ (libraries oxqr runtime_events core_bench)
  (flags
   (:standard -w -32)))
 

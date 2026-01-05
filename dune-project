@@ -19,8 +19,13 @@
  (name oxqr)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml dune ppx_expect js_of_ocaml)
+ (depends ocaml dune ppx_expect js_of_ocaml core_bench)
  (tags
   ("add topics" "to describe" your project)))
+
+(package
+ (name oxqr-doc)
+ (synopsis "Documentation for oxqr")
+ (depends oxqr))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
