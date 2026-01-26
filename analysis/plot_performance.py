@@ -65,28 +65,44 @@ def create_comparison_plot(stack_df, heap_df):
     # Calculate consistent axis limits across both datasets
     stack_durations_ms = stack_df['duration_seconds'] * 1000
     heap_durations_ms = heap_df['duration_seconds'] * 1000
-    
+
+    # Worst-case analysis
+    stack_worst_idx = stack_durations_ms.idxmax()
+    stack_worst_val = stack_durations_ms.max()
+    heap_worst_idx = heap_durations_ms.idxmax()
+    heap_worst_val = heap_durations_ms.max()
+
+    print(f"Stack-based worst-case: {stack_worst_val:.3f} ms (iteration {stack_df['iteration'][stack_worst_idx]})")
+    print(f"Heap-based worst-case:  {heap_worst_val:.3f} ms (iteration {heap_df['iteration'][heap_worst_idx]})")
+
     # For time series: find max duration across both datasets
     max_duration = max(stack_durations_ms.max(), heap_durations_ms.max())
-    
+
     # For histograms: find max duration for x-axis consistency
     max_hist_duration = max_duration
-    
+
     fig = plt.figure(figsize=(16, 12))
     gs = fig.add_gridspec(3, 2, height_ratios=[2, 2, 1], hspace=0.3, wspace=0.3)
-    
+
     # Histograms
     ax1 = fig.add_subplot(gs[0, 0])
     ax2 = fig.add_subplot(gs[0, 1])
     plot_histogram(stack_df, 'Stack-based QR Generation', ax1, 'steelblue', xlim=max_hist_duration)
     plot_histogram(heap_df, 'Heap-based QR Generation', ax2, 'darkgreen', xlim=max_hist_duration)
-    
+
     # Time series
     ax3 = fig.add_subplot(gs[1, 0])
     ax4 = fig.add_subplot(gs[1, 1])
     plot_time_series(stack_df, 'Stack-based', ax3, 'steelblue', ylim=max_duration)
     plot_time_series(heap_df, 'Heap-based', ax4, 'darkgreen', ylim=max_duration)
-    
+
+    # Add worst-case annotation to the bottom row
+    ax5 = fig.add_subplot(gs[2, :])
+    ax5.axis('off')
+    worst_text = (f"Stack-based worst-case: {stack_worst_val:.3f} ms (iteration {stack_df['iteration'][stack_worst_idx]})\n"
+                 f"Heap-based worst-case:  {heap_worst_val:.3f} ms (iteration {heap_df['iteration'][heap_worst_idx]})")
+    ax5.text(0.5, 0.5, worst_text, fontsize=14, ha='center', va='center', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.7))
+
     plt.suptitle('QR Generation Performance Analysis: Stack vs Heap', fontsize=16, fontweight='bold')
     return fig
 

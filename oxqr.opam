@@ -14,6 +14,8 @@ depends: [
   "dune" {>= "3.20"}
   "ppx_expect"
   "js_of_ocaml"
+  "core_unix"
+  "base"
   "odoc" {with-doc}
 ]
 build: [
