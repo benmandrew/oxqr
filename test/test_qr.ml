@@ -44,10 +44,10 @@ let%expect_test "test_version_2_pattern_modules" =
 
 let%expect_test "test_version_1_place_data_full" =
   let config = Config.make ~version:1 ~ecl:Config.ECL.L in
-  let qr = Qr.make ~version:config.version in
-  Qr.place_pattern_modules qr config.version;
+  let qr = Qr.make ~version:config.#version in
+  Qr.place_pattern_modules qr config.#version;
   let data = Bytes.init 26 ~f:(fun _ -> Char.of_int_exn 0b11111111) in
-  Qr.place_data qr data config.version;
+  Qr.place_data qr data config.#version;
   Stdlib.Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
   [%expect
     {|
@@ -84,10 +84,10 @@ let%expect_test "test_version_1_place_data_full" =
 
 let%expect_test "test_version_1_place_data_partial" =
   let config = Config.make ~version:1 ~ecl:Config.ECL.L in
-  let qr = Qr.make ~version:config.version in
-  Qr.place_pattern_modules qr config.version;
-  let data = Bytes.init 26 ~f:(fun _ -> Char.of_int_exn 0b10001010) in
-  Qr.place_data qr data config.version;
+  let qr = Qr.make ~version:config.#version in
+  Qr.place_pattern_modules qr config.#version;
+  let data = Bytes.init 26 ~f:(fun _ -> Char.of_int_exn 0b10101010) in
+  Qr.place_data qr data config.#version;
   Stdlib.Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
   [%expect
     {|
@@ -134,9 +134,9 @@ let%expect_test "test_format_bits_generation" =
 
 let%expect_test "test_version_2_format_info" =
   let config = Config.make ~version:2 ~ecl:Config.ECL.L in
-  let qr = Qr.make ~version:config.version in
-  Qr.place_pattern_modules qr config.version;
-  Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern:0;
+  let qr = Qr.make ~version:config.#version in
+  Qr.place_pattern_modules qr config.#version;
+  Qr.place_format_info qr ~ecl:config.#ecl ~mask_pattern:0;
   Stdlib.Printf.printf "\n%s\n" (Qr.to_unicode_string qr);
   [%expect
     {|

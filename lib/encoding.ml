@@ -168,7 +168,7 @@ let[@zero_alloc] interleave_blocks arena block_count ec_info =
   let _ = interleave_ec 0 after_data in
   out
 
-let[@zero_alloc] encode arena s (ecl @ local) =
+let encode arena s (ecl @ local) =
   let config = Config.get_config s ecl in
   let ec_info = Config.get_ec_info config in
   let total_data_codewords =
@@ -191,24 +191,24 @@ let generate_qr arena s ecl =
   let _ = encode arena s ecl in
   let block_count = split_into_blocks arena ec_info in
   let final_data = interleave_blocks arena block_count ec_info in
-  let qr = Qr.make ~version:config.version in
-  Qr.place_pattern_modules qr config.version;
+  let qr = Qr.make ~version:config.#version in
+  Qr.place_pattern_modules qr config.#version;
   let mask_pattern = 0 in
-  Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern;
-  Qr.place_data qr final_data config.version;
+  Qr.place_format_info qr ~ecl:config.#ecl ~mask_pattern;
+  Qr.place_data qr final_data config.#version;
   Qr.apply_mask_pattern qr;
   qr
 
-let[@zero_alloc] generate_qr_stack arena s ecl =
+let generate_qr_stack arena s ecl =
   let config = Config.get_config s ecl in
   let ec_info = Config.get_ec_info config in
   let _ = encode arena s ecl in
   let block_count = split_into_blocks arena ec_info in
   let final_data = interleave_blocks arena block_count ec_info in
   let qr = Arena.get_qr_exn arena in
-  Qr.place_pattern_modules qr config.version;
+  Qr.place_pattern_modules qr config.#version;
   let mask_pattern = 0 in
-  Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern;
-  Qr.place_data qr final_data config.version;
+  Qr.place_format_info qr ~ecl:config.#ecl ~mask_pattern;
+  Qr.place_data qr final_data config.#version;
   Qr.apply_mask_pattern qr;
   ()

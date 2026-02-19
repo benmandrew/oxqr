@@ -8,7 +8,6 @@ module Arena : sig
 end
 
 val encode : Arena.t -> string -> Config.ECL.t -> int
-[@@zero_alloc]
 (** [encode arena data ecl] encodes the given [data] string into the QR code
     structure stored in [arena] with error correction level [ecl]. *)
 
@@ -18,5 +17,4 @@ val generate_qr : Arena.t -> string -> Config.ECL.t -> Qr.t
     be rendered. *)
 
 val generate_qr_stack : Arena.t -> string -> Config.ECL.t -> unit
-[@@zero_alloc]
 (** Version of [generate_qr] that only allocates on the stack *)
