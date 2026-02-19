@@ -15,7 +15,7 @@ let generate_qr_svg data_js ecl_str_js =
     | _ -> Config.ECL.M (* Default to M if invalid *)
   in
   let config = Config.get_config data ecl in
-  let arena = Encoding.Arena.create (Some config.version) in
+  let arena = Encoding.Arena.create (Some config.#version) in
   Encoding.generate_qr_stack arena data ecl;
   let result = Svg.qr_to_svg @@ Encoding.Arena.get_qr_exn arena in
   Js.string result
