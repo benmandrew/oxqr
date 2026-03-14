@@ -9,7 +9,7 @@ let max_total_ec_bytes = max_blocks * max_ec_per_block (* 2430 *)
 let max_total_bytes = 3706
 
 module Arena = struct
-  type t = {
+  type t = #{
     block_data_pos : int array;
     block_data_len : int array;
     block_ec_pos : int array;
@@ -18,25 +18,25 @@ module Arena = struct
     remainder_scratch : int array;
     interleave_buffer : Bytes.t;
     bitbuf_storage : Bytes.t;
-    qr : Qr.t option;
+    qr : Qr.t;
   }
 
-  let create qr_version =
-    {
-      block_data_pos = Array.create ~len:max_blocks 0;
-      block_data_len = Array.create ~len:max_blocks 0;
-      block_ec_pos = Array.create ~len:max_blocks 0;
-      block_ec_len = Array.create ~len:max_blocks 0;
-      ec_storage = Bytes.make max_total_ec_bytes '\000';
-      remainder_scratch = Array.create ~len:512 0;
-      interleave_buffer = Bytes.make max_total_bytes '\000';
-      bitbuf_storage = Bytes.make max_total_bytes '\000';
-      qr = Option.map qr_version ~f:(fun version -> Qr.make ~version);
-    }
+  let create ~qr_version =
+    #{
+       block_data_pos = Array.create ~len:max_blocks 0;
+       block_data_len = Array.create ~len:max_blocks 0;
+       block_ec_pos = Array.create ~len:max_blocks 0;
+       block_ec_len = Array.create ~len:max_blocks 0;
+       ec_storage = Bytes.make max_total_ec_bytes '\000';
+       remainder_scratch = Array.create ~len:512 0;
+       interleave_buffer = Bytes.make max_total_bytes '\000';
+       bitbuf_storage = Bytes.make max_total_bytes '\000';
+       qr = Qr.make ~version:qr_version;
+     }
 
-  let get_qr_buffer (arena @ local) = arena.bitbuf_storage
-  let get_remainder_scratch (arena @ local) = arena.remainder_scratch
-  let get_qr_exn (arena @ local) = exclave_ Option.value_exn__local arena.qr
+  let get_qr_buffer (arena @ local) = arena.#bitbuf_storage
+  let get_remainder_scratch (arena @ local) = arena.#remainder_scratch
+  let get_qr_exn (arena @ local) = arena.#qr
 end
 
 let[@zero_alloc] rec encode_pairs (buf @ local) s len i =
@@ -102,13 +102,13 @@ let[@zero_alloc] split_into_blocks arena ec_info =
   for idx = 0 to g1_count - 1 do
     let data_pos = idx * g1_size in
     let ec_pos = idx * ec_per_block in
-    arena.Arena.block_data_pos.(idx) <- data_pos;
-    arena.block_data_len.(idx) <- g1_size;
-    arena.block_ec_pos.(idx) <- ec_pos;
-    arena.block_ec_len.(idx) <- ec_per_block;
-    Reed_solomon.generate_error_correction arena.remainder_scratch
-      arena.bitbuf_storage ~pos:data_pos ~len:g1_size ec_per_block
-      arena.ec_storage ~out_pos:ec_pos
+    arena.#Arena.block_data_pos.(idx) <- data_pos;
+    arena.#block_data_len.(idx) <- g1_size;
+    arena.#block_ec_pos.(idx) <- ec_pos;
+    arena.#block_ec_len.(idx) <- ec_per_block;
+    Reed_solomon.generate_error_correction arena.#remainder_scratch
+      arena.#bitbuf_storage ~pos:data_pos ~len:g1_size ec_per_block
+      arena.#ec_storage ~out_pos:ec_pos
   done;
   (* Group 2 blocks *)
   let base_data_pos = g1_count * g1_size in
@@ -116,13 +116,13 @@ let[@zero_alloc] split_into_blocks arena ec_info =
     let idx = g1_count + j in
     let data_pos = base_data_pos + (j * g2_size) in
     let ec_pos = idx * ec_per_block in
-    arena.block_data_pos.(idx) <- data_pos;
-    arena.block_data_len.(idx) <- g2_size;
-    arena.block_ec_pos.(idx) <- ec_pos;
-    arena.block_ec_len.(idx) <- ec_per_block;
-    Reed_solomon.generate_error_correction arena.remainder_scratch
-      arena.bitbuf_storage ~pos:data_pos ~len:g2_size ec_per_block
-      arena.ec_storage ~out_pos:ec_pos
+    arena.#block_data_pos.(idx) <- data_pos;
+    arena.#block_data_len.(idx) <- g2_size;
+    arena.#block_ec_pos.(idx) <- ec_pos;
+    arena.#block_ec_len.(idx) <- ec_per_block;
+    Reed_solomon.generate_error_correction arena.#remainder_scratch
+      arena.#bitbuf_storage ~pos:data_pos ~len:g2_size ec_per_block
+      arena.#ec_storage ~out_pos:ec_pos
   done;
   total_blocks
 
@@ -136,15 +136,15 @@ let[@zero_alloc] interleave_blocks arena block_count ec_info =
     + (ec_info.group2_blocks * ec_info.group2_data_codewords)
     + (block_count * ec_size)
   in
-  let out = arena.Arena.interleave_buffer in
+  let out = arena.#Arena.interleave_buffer in
   let rec interleave_data i out_pos =
     if i = max_data_size then out_pos
     else
       let rec loop_blocks idx out_pos =
         if idx = block_count then out_pos
-        else if i < arena.block_data_len.(idx) then (
+        else if i < arena.#block_data_len.(idx) then (
           Bytes.set out out_pos
-            (Bytes.get arena.bitbuf_storage (arena.block_data_pos.(idx) + i));
+            (Bytes.get arena.#bitbuf_storage (arena.#block_data_pos.(idx) + i));
           loop_blocks (idx + 1) (out_pos + 1))
         else loop_blocks (idx + 1) out_pos
       in
@@ -157,8 +157,8 @@ let[@zero_alloc] interleave_blocks arena block_count ec_info =
       let rec loop_blocks idx out_pos =
         if idx = block_count then out_pos
         else
-          let ec_pos = arena.block_ec_pos.(idx) + i in
-          Bytes.set out out_pos (Bytes.get arena.ec_storage ec_pos);
+          let ec_pos = arena.#block_ec_pos.(idx) + i in
+          Bytes.set out out_pos (Bytes.get arena.#ec_storage ec_pos);
           loop_blocks (idx + 1) (out_pos + 1)
       in
       let next_pos = loop_blocks 0 out_pos in
@@ -176,7 +176,7 @@ let[@zero_alloc] encode arena s (ecl @ local) =
     + (ec_info.group2_blocks * ec_info.group2_data_codewords)
   in
   let buf =
-    Bitbuf.create_from_existing arena.Arena.bitbuf_storage total_data_codewords
+    Bitbuf.create_from_existing arena.#Arena.bitbuf_storage total_data_codewords
   in
   Bitbuf.write_bits_msb buf Config.mode_indicator Config.mode_indicator_length;
   let cci_len = Config.char_count_indicator_length config in

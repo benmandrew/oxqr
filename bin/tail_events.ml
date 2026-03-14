@@ -491,7 +491,7 @@ let write_results_to_csv function_name =
 let run_qr_experiment ~test_data ~arena ~num_iterations ~warmup_iterations =
   let experiments =
     [
-      ("stack", Encoding.generate_qr_stack);
+      ("stack_unboxed", Encoding.generate_qr_stack);
       ( "heap",
         fun arena data ecl ->
           let _ = Encoding.generate_qr arena data ecl in
@@ -539,7 +539,7 @@ let run_qr_experiment ~test_data ~arena ~num_iterations ~warmup_iterations =
 
 let () =
   Stdlib.Printf.printf "=== QR Code Generation Timing Analysis ===\n";
-  let str_len = 10 in
+  let str_len = 1000 in
   let num_iterations = 200000 in
   let warmup_iterations = num_iterations / 10 in
   let test_data = random_alphanumeric_string str_len in
@@ -547,6 +547,6 @@ let () =
   let qr_version = config.version in
   Stdlib.Printf.printf "Test data: %d characters, QR version: %d\n" str_len
     qr_version;
-  let arena = Encoding.Arena.create (Some qr_version) in
+  let arena = Encoding.Arena.create ~qr_version in
   Stdlib.Printf.printf "Starting experiment...\n";
   run_qr_experiment ~test_data ~arena ~num_iterations ~warmup_iterations

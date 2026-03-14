@@ -6,83 +6,104 @@ QR Generation Tail Event Analyzer
 import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
+import numpy as np
 
-def load_timing_data(filename):
+
+from typing import Optional
+import matplotlib.axes
+import matplotlib.figure
+
+def load_timing_data(filename: str) -> Optional[pd.DataFrame]:
     try:
-        df = pd.read_csv(filename)
+        df: pd.DataFrame = pd.read_csv(filename)
         return df
     except FileNotFoundError:
         print(f"Error: Could not find file {filename}")
         return None
 
-def plot_histogram(df, title, ax, color='blue', xlim=None):
+def plot_histogram(
+    df: pd.DataFrame,
+    title: str,
+    ax: matplotlib.axes.Axes,
+    color: str = 'blue',
+    xlim: Optional[float] = None
+) -> None:
     durations = df['duration_seconds'] * 1000  # Convert to milliseconds
     tail_events = df[df['tail_event'] == 1]['duration_seconds'] * 1000
-    n_bins = min(50, len(durations) // 20)
-    _counts, bins, _patches = ax.hist(durations, bins=n_bins, alpha=0.7, color=color, edgecolor='black')
+    n_bins: int = min(50, len(durations) // 20)
+    _counts, bins, _patches = ax.hist(durations, bins=n_bins, alpha=0.7, color=color, edgecolor='black')  # type: ignore
     if len(tail_events) > 0:
-        ax.hist(tail_events, bins=bins, alpha=0.9, color='red', edgecolor='darkred', label='Tail Events')
-    mean_ms = durations.mean()
-    std_ms = durations.std()
-    p95_ms = durations.quantile(0.95)
-    p99_ms = durations.quantile(0.99)
-    p99_9_ms = durations.quantile(0.999)
-    tail_count = len(tail_events)
-    tail_percentage = (tail_count / len(durations)) * 100
-    stats_text = f'Mean: {mean_ms:.3f}ms\nStd: {std_ms:.3f}ms\nP95: {p95_ms:.3f}ms\nP99: {p99_ms:.3f}ms\nP99.9: {p99_9_ms:.3f}ms\nTail Events: {tail_count} ({tail_percentage:.2f}%)'
-    ax.text(0.98, 0.98, stats_text, transform=ax.transAxes, fontsize=10,
+        ax.hist(tail_events, bins=bins, alpha=0.9, color='red', edgecolor='darkred', label='Tail Events', log=True)  # type: ignore
+    mean_ms: float = durations.mean()
+    std_ms: float = durations.std()
+    p95_ms: float = durations.quantile(0.95)
+    p99_ms: float = durations.quantile(0.99)
+    p99_9_ms: float = durations.quantile(0.999)
+    tail_count: int = len(tail_events)
+    tail_percentage: float = (tail_count / len(durations)) * 100
+    stats_text: str = f'Mean: {mean_ms:.3f}ms\nStd: {std_ms:.3f}ms\nP95: {p95_ms:.3f}ms\nP99: {p99_ms:.3f}ms\nP99.9: {p99_9_ms:.3f}ms\nTail Events: {tail_count} ({tail_percentage:.2f}%)'
+    ax.text(0.98, 0.98, stats_text, transform=ax.transAxes, fontsize=10,  # type: ignore
             verticalalignment='top', horizontalalignment='right',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    ax.set_xlabel('Duration (milliseconds)', fontsize=12)
-    ax.set_ylabel('Frequency', fontsize=12)
+    ax.set_title(title, fontsize=14, fontweight='bold')  # type: ignore
+    ax.set_xlabel('Duration (milliseconds)', fontsize=12)  # type: ignore
+    ax.set_ylabel('Frequency', fontsize=12)  # type: ignore
     if xlim is not None:
         ax.set_xlim(0, xlim)
-    ax.grid(True, alpha=0.3)
+    ax.grid(True, alpha=0.3)  # type: ignore
     if len(tail_events) > 0:
-        ax.legend()
+        ax.legend()  # type: ignore
 
-def plot_time_series(df, title, ax, color='blue', ylim=None):
+def plot_time_series(
+    df: pd.DataFrame,
+    title: str,
+    ax: matplotlib.axes.Axes,
+    color: str = 'blue',
+    ylim: Optional[float] = None
+) -> None:
     durations_ms = df['duration_seconds'] * 1000
     tail_mask = df['tail_event'] == 1
-    ax.plot(df['iteration'], durations_ms, color=color, alpha=0.6, linewidth=0.5)
-    ax.scatter(df['iteration'], durations_ms, c=color, s=1, alpha=0.7)
+    ax.plot(df['iteration'], durations_ms, color=color, alpha=0.6, linewidth=0.5)  # type: ignore
+    ax.scatter(df['iteration'], durations_ms, c=color, s=1, alpha=0.7)  # type: ignore
     if tail_mask.any():
         tail_iterations = df[tail_mask]['iteration']
         tail_durations = durations_ms[tail_mask]
-        ax.scatter(tail_iterations, tail_durations, c='red', s=20, alpha=0.9, 
+        ax.scatter(tail_iterations, tail_durations, c='red', s=20, alpha=0.9,   # type: ignore
                   label='Tail Events', zorder=5)
-    ax.set_title(f'{title} - Time Series', fontsize=14, fontweight='bold')
-    ax.set_xlabel('Iteration', fontsize=12)
-    ax.set_ylabel('Duration (milliseconds)', fontsize=12)
+    ax.set_title(f'{title} - Time Series', fontsize=14, fontweight='bold')  # type: ignore
+    ax.set_xlabel('Iteration', fontsize=12)  # type: ignore
+    ax.set_ylabel('Duration (milliseconds)', fontsize=12)  # type: ignore
     if ylim is not None:
         ax.set_ylim(0, ylim)
-    ax.grid(True, alpha=0.3)
+    ax.grid(True, alpha=0.3)  # type: ignore
     if tail_mask.any():
-        ax.legend()
+        ax.legend()  # type: ignore
 
-def create_comparison_plot(stack_df, heap_df):
+def create_comparison_plot(
+    stack_df: pd.DataFrame,
+    heap_df: pd.DataFrame
+) -> matplotlib.figure.Figure:
     # Calculate consistent axis limits across both datasets
     stack_durations_ms = stack_df['duration_seconds'] * 1000
     heap_durations_ms = heap_df['duration_seconds'] * 1000
 
     # Worst-case analysis
     stack_worst_idx = stack_durations_ms.idxmax()
-    stack_worst_val = stack_durations_ms.max()
+    stack_worst_val: float = stack_durations_ms.max()
     heap_worst_idx = heap_durations_ms.idxmax()
-    heap_worst_val = heap_durations_ms.max()
+    heap_worst_val: float = heap_durations_ms.max()
 
     print(f"Stack-based worst-case: {stack_worst_val:.3f} ms (iteration {stack_df['iteration'][stack_worst_idx]})")
     print(f"Heap-based worst-case:  {heap_worst_val:.3f} ms (iteration {heap_df['iteration'][heap_worst_idx]})")
 
     # For time series: find max duration across both datasets
-    max_duration = max(stack_durations_ms.max(), heap_durations_ms.max())
+    max_duration: float = max(stack_durations_ms.max(), heap_durations_ms.max())
 
     # For histograms: find max duration for x-axis consistency
-    max_hist_duration = max_duration
+    max_hist_duration: float = max_duration
 
-    fig = plt.figure(figsize=(16, 12))
-    gs = fig.add_gridspec(3, 2, height_ratios=[2, 2, 1], hspace=0.3, wspace=0.3)
+    fig: matplotlib.figure.Figure = plt.figure(figsize=(16, 12))  # type: ignore
+    gs = fig.add_gridspec(3, 2, height_ratios=[2, 2, 1], hspace=0.3, wspace=0.3)  # type: ignore
 
     # Histograms
     ax1 = fig.add_subplot(gs[0, 0])
@@ -101,13 +122,13 @@ def create_comparison_plot(stack_df, heap_df):
     ax5.axis('off')
     worst_text = (f"Stack-based worst-case: {stack_worst_val:.3f} ms (iteration {stack_df['iteration'][stack_worst_idx]})\n"
                  f"Heap-based worst-case:  {heap_worst_val:.3f} ms (iteration {heap_df['iteration'][heap_worst_idx]})")
-    ax5.text(0.5, 0.5, worst_text, fontsize=14, ha='center', va='center', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.7))
+    ax5.text(0.5, 0.5, worst_text, fontsize=14, ha='center', va='center', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.7))  # type: ignore
 
-    plt.suptitle('QR Generation Performance Analysis: Stack vs Heap', fontsize=16, fontweight='bold')
+    plt.suptitle('QR Generation Performance Analysis: Stack vs Heap', fontsize=16, fontweight='bold')  # type: ignore
     return fig
 
-def main():
-    parser = argparse.ArgumentParser(description='Analyze QR generation tail events')
+def main() -> int:
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description='Analyze QR generation tail events')
     parser.add_argument('--stack-file', default='generate_qr_stack_timings.csv',
                        help='CSV file with stack-based timing data')
     parser.add_argument('--heap-file', default='generate_qr_heap_timings.csv',
@@ -116,10 +137,10 @@ def main():
                        help='Output filename for the plot')
     parser.add_argument('--show', action='store_true',
                        help='Show the plot interactively')
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
     print("Loading timing data...")
-    stack_df = load_timing_data(args.stack_file)
-    heap_df = load_timing_data(args.heap_file)
+    stack_df: Optional[pd.DataFrame] = load_timing_data(args.stack_file)
+    heap_df: Optional[pd.DataFrame] = load_timing_data(args.heap_file)
     if stack_df is None or heap_df is None:
         print("Error: Could not load required data files.")
         print(f"Expected files: {args.stack_file}, {args.heap_file}")
@@ -128,10 +149,10 @@ def main():
     print(f"Loaded {len(stack_df)} stack measurements and {len(heap_df)} heap measurements")
     print("Creating plots...")
     fig = create_comparison_plot(stack_df, heap_df)
-    fig.savefig(args.output, dpi=300, bbox_inches='tight')
+    fig.savefig(args.output, dpi=300, bbox_inches='tight')  # type: ignore
     print(f"Plot saved as {args.output}")
     if args.show:
-        plt.show()
+        plt.show()  # type: ignore
     return 0
 
 if __name__ == '__main__':

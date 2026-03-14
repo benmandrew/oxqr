@@ -1,7 +1,16 @@
 module Arena : sig
-  type t
+  type t :
+    value
+    & value
+    & value
+    & value
+    & value
+    & value
+    & value
+    & value
+    & (value & value)
 
-  val create : int option -> t
+  val create : qr_version:int -> t
   val get_qr_buffer : local_ t -> local_ Bytes.t
   val get_remainder_scratch : local_ t -> local_ int array
   val get_qr_exn : local_ t -> local_ Qr.t

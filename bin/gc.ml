@@ -36,7 +36,7 @@ let runtime_counter _device _ts counter n =
 let () =
   let str_len = 100 in
   let test_data = random_alphanumeric_string str_len in
-  let arena = Encoding.Arena.create (Some str_len) in
+  let arena = Encoding.Arena.create ~qr_version:5 in
   Runtime_events.start ();
   let cursor = Runtime_events.create_cursor None in
   let callbacks =

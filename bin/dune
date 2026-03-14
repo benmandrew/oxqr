@@ -11,7 +11,7 @@
 (executable
  (name main)
  (public_name oxqr)
- (libraries oxqr)
+ (libraries oxqr landmarks)
  (flags
   (:standard -w -32)))
 
