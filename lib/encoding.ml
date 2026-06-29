@@ -5,16 +5,14 @@ let lm_split = Landmark.register "split_into_blocks"
 let lm_interleave = Landmark.register "interleave_blocks"
 let lm_place_pattern = Landmark.register "place_pattern_modules"
 let lm_place_format = Landmark.register "place_format_info"
-let lm_place_data = Landmark.register "place_data"
-let lm_apply_mask = Landmark.register "apply_mask_pattern"
+let lm_place_data = Landmark.register "place_data_and_apply_mask"
 
 let lm_stack_encode = Landmark.register "stack/encode"
 let lm_stack_split = Landmark.register "stack/split_into_blocks"
 let lm_stack_interleave = Landmark.register "stack/interleave_blocks"
 let lm_stack_place_pattern = Landmark.register "stack/place_pattern_modules"
 let lm_stack_place_format = Landmark.register "stack/place_format_info"
-let lm_stack_place_data = Landmark.register "stack/place_data"
-let lm_stack_apply_mask = Landmark.register "stack/apply_mask_pattern"
+let lm_stack_place_data = Landmark.register "stack/place_data_and_apply_mask"
 
 (* Maximum sizes for QR version 40 (largest): 81 blocks, 119 data codewords,
    30 EC codewords per block, 3706 total codewords. *)
@@ -222,11 +220,8 @@ let generate_qr arena s ecl =
   Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern;
   Landmark.exit lm_place_format;
   Landmark.enter lm_place_data;
-  Qr.place_data qr final_data config.version;
+  Qr.place_data_and_apply_mask qr final_data config.version;
   Landmark.exit lm_place_data;
-  Landmark.enter lm_apply_mask;
-  Qr.apply_mask_pattern qr;
-  Landmark.exit lm_apply_mask;
   qr
 
 let generate_qr_stack_bench arena s ecl =
@@ -250,11 +245,8 @@ let generate_qr_stack_bench arena s ecl =
   Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern;
   Landmark.exit lm_stack_place_format;
   Landmark.enter lm_stack_place_data;
-  Qr.place_data qr final_data config.version;
-  Landmark.exit lm_stack_place_data;
-  Landmark.enter lm_stack_apply_mask;
-  Qr.apply_mask_pattern qr;
-  Landmark.exit lm_stack_apply_mask
+  Qr.place_data_and_apply_mask qr final_data config.version;
+  Landmark.exit lm_stack_place_data
 
 let[@zero_alloc] generate_qr_stack arena s ecl =
   let config = Config.get_config s ecl in
@@ -266,6 +258,5 @@ let[@zero_alloc] generate_qr_stack arena s ecl =
   Qr.place_pattern_modules qr config.version;
   let mask_pattern = 0 in
   Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern;
-  Qr.place_data qr final_data config.version;
-  Qr.apply_mask_pattern qr;
+  Qr.place_data_and_apply_mask qr final_data config.version;
   ()

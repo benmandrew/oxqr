@@ -50,11 +50,18 @@ let generator_polynomials =
 (** Generate the generator polynomial for n error correction codewords *)
 let[@zero_alloc] generate_generator_polynomial n = generator_polynomials.(n)
 
+(* Precomputed log values of each generator polynomial coefficient.
+   Sentinel -1 means the coefficient is zero (GF(256) has no log of 0). *)
+let generator_log_polynomials =
+  Array.init (Array.length generator_polynomials) ~f:(fun i ->
+    Array.map generator_polynomials.(i) ~f:(fun x ->
+      if x = 0 then -1 else log_table.(x)))
+
 (** Generate error correction codewords for given data slice and number of ec
     codewords, writing into [out] at [out_pos]. *)
 let[@zero_alloc] generate_error_correction (remainder_scratch @ local)
     (data @ local) ~pos ~len ec_count (out @ local) ~out_pos =
-  let generator = generate_generator_polynomial ec_count in
+  let log_generator = generator_log_polynomials.(ec_count) in
   (* Copy data slice into the beginning of remainder and clear the EC tail. *)
   for i = 0 to len - 1 do
     remainder_scratch.(i) <- Char.to_int (Bytes.get data (pos + i))
@@ -62,15 +69,18 @@ let[@zero_alloc] generate_error_correction (remainder_scratch @ local)
   for i = 0 to ec_count - 1 do
     remainder_scratch.(len + i) <- 0
   done;
-  (* Polynomial division *)
+  (* Polynomial division: hoist log_table.(coef) out of the inner loop *)
   for i = 0 to len - 1 do
     let coef = remainder_scratch.(i) in
-    if coef <> 0 then
+    if coef <> 0 then begin
+      let log_coef = log_table.(coef) in
       for j = 0 to ec_count do
-        remainder_scratch.(i + j) <-
-          remainder_scratch.(i + j)
-          lxor polynomial_mult generator.(ec_count - j) coef
+        let log_gen = log_generator.(ec_count - j) in
+        if log_gen >= 0 then
+          remainder_scratch.(i + j) <-
+            remainder_scratch.(i + j) lxor exp_table.(log_gen + log_coef)
       done
+    end
   done;
   (* Extract the last ec_count bytes as the error correction codewords *)
   for i = 0 to ec_count - 1 do

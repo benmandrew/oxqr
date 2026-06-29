@@ -29,5 +29,11 @@ val apply_mask_pattern : local_ t -> unit
 [@@zero_alloc]
 (** [apply_mask_pattern t] applies mask pattern 0 to the QR code [t]. *)
 
+val place_data_and_apply_mask : local_ t -> bytes -> int -> unit
+[@@zero_alloc]
+(** [place_data_and_apply_mask t data version] places encoded data bytes and
+    applies mask pattern 0 in a single zigzag scan, avoiding the second full
+    matrix pass that separate [place_data] + [apply_mask_pattern] requires. *)
+
 val to_unicode_string : t -> string
 (** Convert the QR code matrix [t] into a Unicode string representation. *)

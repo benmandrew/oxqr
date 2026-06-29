@@ -187,10 +187,6 @@ let[@zero_alloc] mark_reserved (t @ local) version =
 let[@zero_alloc] place_data (t @ local) data _version =
   let bit_pos = ref 0 in
   let data_bits = Bytes.length data * 8 in
-  (* Running byte/shift counters replace division and modulo per cell *)
-  let byte_idx = ref 0 in
-  let cur_byte = ref (if data_bits > 0 then Char.to_int (Bytes.get data 0) else 0) in
-  let cur_shift = ref 7 in
   let x = ref (t.width - 1) in
   let upward = ref true in
   while !x > 0 && !bit_pos < data_bits do
@@ -201,17 +197,14 @@ let[@zero_alloc] place_data (t @ local) data _version =
           for dx = 0 to 1 do
             let px = !x - dx in
             if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
-              let bit = (!cur_byte lsr !cur_shift) land 1 in
+              let byte_idx = !bit_pos / 8 in
+              let bit_idx = 7 - (!bit_pos land 7) in
+              let bit =
+                (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1
+              in
               let value = if bit = 1 then '\001' else '\000' in
               set_module t px y value;
-              Int.incr bit_pos;
-              if !cur_shift = 0 then begin
-                cur_shift := 7;
-                Int.incr byte_idx;
-                if !bit_pos < data_bits then
-                  cur_byte := Char.to_int (Bytes.get data !byte_idx)
-              end else
-                Int.decr cur_shift)
+              Int.incr bit_pos)
           done
         done
       else
@@ -219,17 +212,54 @@ let[@zero_alloc] place_data (t @ local) data _version =
           for dx = 0 to 1 do
             let px = !x - dx in
             if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
-              let bit = (!cur_byte lsr !cur_shift) land 1 in
+              let byte_idx = !bit_pos / 8 in
+              let bit_idx = 7 - (!bit_pos land 7) in
+              let bit =
+                (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1
+              in
               let value = if bit = 1 then '\001' else '\000' in
               set_module t px y value;
-              Int.incr bit_pos;
-              if !cur_shift = 0 then begin
-                cur_shift := 7;
-                Int.incr byte_idx;
-                if !bit_pos < data_bits then
-                  cur_byte := Char.to_int (Bytes.get data !byte_idx)
-              end else
-                Int.decr cur_shift)
+              Int.incr bit_pos)
+          done
+        done;
+      x := !x - 2;
+      upward := not !upward)
+  done
+
+let[@zero_alloc] place_data_and_apply_mask (t @ local) data _version =
+  (* Combined pass: place data bits and apply mask pattern 0 in one scan.
+     Mask 0 flips a module when (x+y) is even; XOR with (x+y+1 land 1) encodes that. *)
+  let bit_pos = ref 0 in
+  let data_bits = Bytes.length data * 8 in
+  let x = ref (t.width - 1) in
+  let upward = ref true in
+  while !x > 0 && !bit_pos < data_bits do
+    if !x = 6 then Int.decr x;
+    if !x > 0 then (
+      if !upward then
+        for y = t.width - 1 downto 0 do
+          for dx = 0 to 1 do
+            let px = !x - dx in
+            if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
+              let byte_idx = !bit_pos / 8 in
+              let bit_idx = 7 - (!bit_pos land 7) in
+              let bit = (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1 in
+              let masked = bit lxor ((px + y + 1) land 1) in
+              Bytes.set t.buf ((y * t.width) + px) (if masked = 0 then '\000' else '\001');
+              Int.incr bit_pos)
+          done
+        done
+      else
+        for y = 0 to t.width - 1 do
+          for dx = 0 to 1 do
+            let px = !x - dx in
+            if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
+              let byte_idx = !bit_pos / 8 in
+              let bit_idx = 7 - (!bit_pos land 7) in
+              let bit = (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1 in
+              let masked = bit lxor ((px + y + 1) land 1) in
+              Bytes.set t.buf ((y * t.width) + px) (if masked = 0 then '\000' else '\001');
+              Int.incr bit_pos)
           done
         done;
       x := !x - 2;
