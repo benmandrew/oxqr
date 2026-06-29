@@ -1,0 +1,12 @@
+(executable
+ (name bench)
+ (libraries oxqr landmarks)
+ (flags
+  (:standard -w -32)))
+
+(executable
+ (name bench_dist)
+ (libraries oxqr)
+ (foreign_stubs (language c) (names time_ns))
+ (flags
+  (:standard -w -32)))

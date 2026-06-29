@@ -1,12 +1,12 @@
 open Base
 
-type t = { buf : bytes; width : int }
+type t = { buf : bytes; reserved : bytes; width : int }
 
 let[@zero_alloc] size version = ((version - 1) * 4) + 21
 
 let make ~version =
   let size = size version in
-  { buf = Bytes.make (size * size) '\000'; width = size }
+  { buf = Bytes.make (size * size) '\000'; reserved = Bytes.make (size * size) '\000'; width = size }
 
 let[@zero_alloc] set_module (t @ local) x y value =
   if x >= 0 && x < t.width && y >= 0 && y < t.width then
@@ -134,70 +134,71 @@ let[@zero_alloc] place_dark_module (t @ local) version =
   let y = (4 * version) + 9 in
   set_module t 8 y '\001'
 
-let[@zero_alloc] alignment_coords_for_version version =
-  if version >= 1 && version <= 40 then Array.get alignment_coords (version - 1)
-  else []
-
-let[@zero_alloc] is_in_alignment_pattern (t @ local) x y version =
-  let coords = alignment_coords_for_version version in
-  let found = ref false in
-  let cx_list = ref coords in
-  while (not !found) && not (List.is_empty !cx_list) do
-    match !cx_list with
-    | [] -> ()
-    | cx :: rest_cx ->
-        let cy_list = ref coords in
-        while (not !found) && not (List.is_empty !cy_list) do
-          match !cy_list with
-          | [] -> ()
-          | cy :: rest_cy ->
-              if
-                abs (x - cx) <= 2
-                && abs (y - cy) <= 2
-                && not
-                     ((* Don't consider alignment patterns that overlap finders *)
-                      (cx < 9 && cy < 9)
-                     || (cx >= t.width - 8 && cy < 9)
-                     || (cx < 9 && cy >= t.width - 8))
-              then found := true;
-              cy_list := rest_cy
-        done;
-        cx_list := rest_cx
+let[@zero_alloc] mark_reserved (t @ local) version =
+  let w = t.width in
+  (* Three 9×9 corner regions cover finders, separators, and format info *)
+  for y = 0 to 8 do
+    for x = 0 to 8 do
+      Bytes.set t.reserved ((y * w) + x) '\001'
+    done
   done;
-  !found
+  for y = 0 to 8 do
+    for x = w - 8 to w - 1 do
+      Bytes.set t.reserved ((y * w) + x) '\001'
+    done
+  done;
+  for y = w - 8 to w - 1 do
+    for x = 0 to 8 do
+      Bytes.set t.reserved ((y * w) + x) '\001'
+    done
+  done;
+  (* Timing patterns (between corner regions at row 6 and col 6) *)
+  for i = 8 to w - 9 do
+    Bytes.set t.reserved ((6 * w) + i) '\001';
+    Bytes.set t.reserved ((i * w) + 6) '\001'
+  done;
+  (* Alignment patterns (version 2+) *)
+  if version >= 2 then begin
+    let coords = Array.get alignment_coords (version - 1) in
+    let cx_list = ref coords in
+    while not (List.is_empty !cx_list) do
+      match !cx_list with
+      | [] -> ()
+      | cx :: rest_cx ->
+          let cy_list = ref coords in
+          while not (List.is_empty !cy_list) do
+            match !cy_list with
+            | [] -> ()
+            | cy :: rest_cy ->
+                if not ((cx < 9 && cy < 9)
+                        || (cx >= w - 8 && cy < 9)
+                        || (cx < 9 && cy >= w - 8)) then
+                  for dy = -2 to 2 do
+                    for dx = -2 to 2 do
+                      Bytes.set t.reserved (((cy + dy) * w) + (cx + dx)) '\001'
+                    done
+                  done;
+                cy_list := rest_cy
+          done;
+          cx_list := rest_cx
+    done
+  end
 
-let[@zero_alloc] is_reserved (t @ local) x y version =
-  let in_top_left = x <= 8 && y <= 8 in
-  let in_top_right = x >= t.width - 8 && y <= 8 in
-  let in_bottom_left = x <= 8 && y >= t.width - 8 in
-  let in_finder_or_sep = in_top_left || in_top_right || in_bottom_left in
-  let on_timing_row = y = 6 && x >= 8 && x <= t.width - 9 in
-  let on_timing_col = x = 6 && y >= 8 && y <= t.width - 9 in
-  let on_format_info =
-    (y = 8 && (x <= 8 || x >= t.width - 8))
-    || (x = 8 && (y <= 8 || y >= t.width - 8))
-  in
-  in_finder_or_sep || on_timing_row || on_timing_col
-  || is_in_alignment_pattern t x y version
-  || on_format_info
-
-let[@zero_alloc] place_data (t @ local) data version =
+let[@zero_alloc] place_data (t @ local) data _version =
   let bit_pos = ref 0 in
   let data_bits = Bytes.length data * 8 in
-  (* Scan right-to-left in 2-column strips, alternating vertical direction per spec *)
   let x = ref (t.width - 1) in
   let upward = ref true in
   while !x > 0 && !bit_pos < data_bits do
     if !x = 6 then Int.decr x;
-    (* skip vertical timing column *)
     if !x > 0 then (
       if !upward then
         for y = t.width - 1 downto 0 do
           for dx = 0 to 1 do
             let px = !x - dx in
-            if (not (is_reserved t px y version)) && !bit_pos < data_bits then (
+            if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
               let byte_idx = !bit_pos / 8 in
-              let bit_idx = 7 - (!bit_pos % 8) in
+              let bit_idx = 7 - (!bit_pos land 7) in
               let bit =
                 (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1
               in
@@ -210,9 +211,9 @@ let[@zero_alloc] place_data (t @ local) data version =
         for y = 0 to t.width - 1 do
           for dx = 0 to 1 do
             let px = !x - dx in
-            if (not (is_reserved t px y version)) && !bit_pos < data_bits then (
+            if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
               let byte_idx = !bit_pos / 8 in
-              let bit_idx = 7 - (!bit_pos % 8) in
+              let bit_idx = 7 - (!bit_pos land 7) in
               let bit =
                 (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1
               in
@@ -225,12 +226,53 @@ let[@zero_alloc] place_data (t @ local) data version =
       upward := not !upward)
   done
 
+let[@zero_alloc] place_data_and_apply_mask (t @ local) data _version =
+  (* Combined pass: place data bits and apply mask pattern 0 in one scan.
+     Mask 0 flips a module when (x+y) is even; XOR with (x+y+1 land 1) encodes that. *)
+  let bit_pos = ref 0 in
+  let data_bits = Bytes.length data * 8 in
+  let x = ref (t.width - 1) in
+  let upward = ref true in
+  while !x > 0 && !bit_pos < data_bits do
+    if !x = 6 then Int.decr x;
+    if !x > 0 then (
+      if !upward then
+        for y = t.width - 1 downto 0 do
+          for dx = 0 to 1 do
+            let px = !x - dx in
+            if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
+              let byte_idx = !bit_pos / 8 in
+              let bit_idx = 7 - (!bit_pos land 7) in
+              let bit = (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1 in
+              let masked = bit lxor ((px + y + 1) land 1) in
+              Bytes.set t.buf ((y * t.width) + px) (if masked = 0 then '\000' else '\001');
+              Int.incr bit_pos)
+          done
+        done
+      else
+        for y = 0 to t.width - 1 do
+          for dx = 0 to 1 do
+            let px = !x - dx in
+            if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
+              let byte_idx = !bit_pos / 8 in
+              let bit_idx = 7 - (!bit_pos land 7) in
+              let bit = (Char.to_int (Bytes.get data byte_idx) lsr bit_idx) land 1 in
+              let masked = bit lxor ((px + y + 1) land 1) in
+              Bytes.set t.buf ((y * t.width) + px) (if masked = 0 then '\000' else '\001');
+              Int.incr bit_pos)
+          done
+        done;
+      x := !x - 2;
+      upward := not !upward)
+  done
+
 let[@zero_alloc] place_pattern_modules (t @ local) version =
   place_finders t;
   place_separators t;
   place_timing_patterns t;
   place_alignment_patterns t version;
-  place_dark_module t version
+  place_dark_module t version;
+  mark_reserved t version
 
 let[@zero_alloc] ecl_format_bits (ecl @ local) =
   match ecl with
@@ -291,14 +333,15 @@ let[@zero_alloc] place_format_info (t @ local) ~ecl ~mask_pattern =
 let[@zero_alloc] apply_mask_pattern (t @ local) =
   for y = 0 to t.width - 1 do
     for x = 0 to t.width - 1 do
-      if not (is_reserved t x y 1) then
-        let mask = (x + y) % 2 = 0 (* Mask pattern 0: (x + y) % 2 = 0 *) in
-        if mask then
-          let current = Bytes.get t.buf ((y * t.width) + x) in
+      if Char.equal__local (Bytes.get t.reserved ((y * t.width) + x)) '\000' then
+        let mask = (x + y) land 1 = 0 in
+        if mask then begin
+          let idx = (y * t.width) + x in
           let new_value =
-            if Char.equal__local current '\000' then '\001' else '\000'
+            if Char.equal__local (Bytes.get t.buf idx) '\000' then '\001' else '\000'
           in
-          Bytes.set t.buf ((y * t.width) + x) new_value
+          Bytes.set t.buf idx new_value
+        end
     done
   done
 

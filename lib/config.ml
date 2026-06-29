@@ -76,9 +76,7 @@ type ec_info = {
 
 (* Alphanumeric mode *)
 let capacity_table =
-  let add_entry assoc_list (version, ecl, capacity) =
-    List.Assoc.add assoc_list { version; ecl } capacity ~equal:T.equal
-  in
+  let a = Array.create ~len:(40 * 4) 0 in
   let open ECL in
   let entries =
     [
@@ -284,23 +282,13 @@ let capacity_table =
       (40, H, 1852);
     ]
   in
-  List.fold entries ~init:[] ~f:add_entry
+  List.iter entries ~f:(fun (version, ecl, capacity) ->
+    let i = match ecl with L -> 0 | M -> 1 | Q -> 2 | H -> 3 in
+    a.((version - 1) * 4 + i) <- capacity);
+  a
 
-let ec_table =
-  let add_entry assoc_list
-      (version, ecl, ec_per_block, g1_blocks, g1_data, g2_blocks, g2_data) =
-    let key = { version; ecl } in
-    let data =
-      {
-        ec_codewords_per_block = ec_per_block;
-        group1_blocks = g1_blocks;
-        group1_data_codewords = g1_data;
-        group2_blocks = g2_blocks;
-        group2_data_codewords = g2_data;
-      }
-    in
-    List.Assoc.add assoc_list key data ~equal:T.equal
-  in
+let ec_table_flat =
+  let a = Array.create ~len:(40 * 4 * 5) 0 in
   let open ECL in
   let entries =
     [
@@ -506,24 +494,38 @@ let ec_table =
       (40, H, 30, 20, 15, 61, 16);
     ]
   in
-  List.fold entries ~init:[] ~f:add_entry
-
-let[@zero_alloc] get_capacity (config @ local) = exclave_
-  List.Assoc.find_exn__local capacity_table ~equal:T.equal__local config
+  List.iter entries ~f:(fun (version, ecl, ec_per_block, g1_blocks, g1_data, g2_blocks, g2_data) ->
+    let i = match ecl with L -> 0 | M -> 1 | Q -> 2 | H -> 3 in
+    let base = ((version - 1) * 4 + i) * 5 in
+    a.(base) <- ec_per_block;
+    a.(base + 1) <- g1_blocks;
+    a.(base + 2) <- g1_data;
+    a.(base + 3) <- g2_blocks;
+    a.(base + 4) <- g2_data);
+  a
 
 let[@zero_alloc] get_ec_info (config @ local) = exclave_
-  List.Assoc.find_exn__local ec_table ~equal:T.equal__local config
+  let i = match config.ecl with
+    | ECL.L -> 0 | ECL.M -> 1 | ECL.Q -> 2 | ECL.H -> 3 in
+  let base = ((config.version - 1) * 4 + i) * 5 in
+  { ec_codewords_per_block = ec_table_flat.(base);
+    group1_blocks = ec_table_flat.(base + 1);
+    group1_data_codewords = ec_table_flat.(base + 2);
+    group2_blocks = ec_table_flat.(base + 3);
+    group2_data_codewords = ec_table_flat.(base + 4) }
 
 let mode_indicator_length = 4
 let mode_indicator = 0b0010
 
-let[@zero_alloc] rec find_version v (ecl @ local) length =
+let[@zero_alloc] rec find_version v ecl_idx (ecl @ local) length =
   if v > 40 then raise (Invalid_argument "Data too long to encode in QR code")
-  else exclave_
-    let config = make_local ~version:v ~ecl in
-    let capacity = get_capacity config in
-    if length <= capacity then config else find_version (v + 1) ecl length
+  else
+    let capacity = capacity_table.((v - 1) * 4 + ecl_idx) in
+    if length <= capacity then exclave_ make_local ~version:v ~ecl
+    else exclave_ find_version (v + 1) ecl_idx ecl length
 
 let[@zero_alloc] get_config s (ecl @ local) =
   let length = String.length s in
-  exclave_ find_version 1 ecl length
+  let ecl_idx = match ecl with
+    | ECL.L -> 0 | ECL.M -> 1 | ECL.Q -> 2 | ECL.H -> 3 in
+  exclave_ find_version 1 ecl_idx ecl length

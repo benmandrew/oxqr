@@ -20,3 +20,6 @@ val generate_qr : Arena.t -> string -> Config.ECL.t -> Qr.t
 val generate_qr_stack : Arena.t -> string -> Config.ECL.t -> unit
 [@@zero_alloc]
 (** Version of [generate_qr] that only allocates on the stack *)
+
+val generate_qr_stack_bench : Arena.t -> string -> Config.ECL.t -> unit
+(** Landmark-instrumented variant of [generate_qr_stack] for benchmarking *)
