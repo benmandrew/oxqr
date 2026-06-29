@@ -9,7 +9,7 @@ external time_ns : unit -> int = "bench_time_ns" [@@noalloc]
 
 (* 5 000 samples gives stable p50/p90/p99 and directionally useful p99.9
    (5 data points in the top 0.1%). *)
-let n_samples = 5_000
+let n_samples = 100_000
 
 let version_inputs =
   let arr = Array.make 41 "" in
