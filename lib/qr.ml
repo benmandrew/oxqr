@@ -1,12 +1,12 @@
 open Base
 
-type t = { buf : bytes; width : int }
+type t = { buf : bytes; reserved : bytes; width : int }
 
 let[@zero_alloc] size version = ((version - 1) * 4) + 21
 
 let make ~version =
   let size = size version in
-  { buf = Bytes.make (size * size) '\000'; width = size }
+  { buf = Bytes.make (size * size) '\000'; reserved = Bytes.make (size * size) '\000'; width = size }
 
 let[@zero_alloc] set_module (t @ local) x y value =
   if x >= 0 && x < t.width && y >= 0 && y < t.width then
@@ -181,7 +181,15 @@ let[@zero_alloc] is_reserved (t @ local) x y version =
   || is_in_alignment_pattern t x y version
   || on_format_info
 
-let[@zero_alloc] place_data (t @ local) data version =
+let[@zero_alloc] mark_reserved (t @ local) version =
+  for y = 0 to t.width - 1 do
+    for x = 0 to t.width - 1 do
+      if is_reserved t x y version then
+        Bytes.set t.reserved ((y * t.width) + x) '\001'
+    done
+  done
+
+let[@zero_alloc] place_data (t @ local) data _version =
   let bit_pos = ref 0 in
   let data_bits = Bytes.length data * 8 in
   (* Scan right-to-left in 2-column strips, alternating vertical direction per spec *)
@@ -195,7 +203,7 @@ let[@zero_alloc] place_data (t @ local) data version =
         for y = t.width - 1 downto 0 do
           for dx = 0 to 1 do
             let px = !x - dx in
-            if (not (is_reserved t px y version)) && !bit_pos < data_bits then (
+            if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
               let byte_idx = !bit_pos / 8 in
               let bit_idx = 7 - (!bit_pos % 8) in
               let bit =
@@ -210,7 +218,7 @@ let[@zero_alloc] place_data (t @ local) data version =
         for y = 0 to t.width - 1 do
           for dx = 0 to 1 do
             let px = !x - dx in
-            if (not (is_reserved t px y version)) && !bit_pos < data_bits then (
+            if Char.equal__local (Bytes.get t.reserved ((y * t.width) + px)) '\000' && !bit_pos < data_bits then (
               let byte_idx = !bit_pos / 8 in
               let bit_idx = 7 - (!bit_pos % 8) in
               let bit =
@@ -230,7 +238,8 @@ let[@zero_alloc] place_pattern_modules (t @ local) version =
   place_separators t;
   place_timing_patterns t;
   place_alignment_patterns t version;
-  place_dark_module t version
+  place_dark_module t version;
+  mark_reserved t version
 
 let[@zero_alloc] ecl_format_bits (ecl @ local) =
   match ecl with
@@ -291,7 +300,7 @@ let[@zero_alloc] place_format_info (t @ local) ~ecl ~mask_pattern =
 let[@zero_alloc] apply_mask_pattern (t @ local) =
   for y = 0 to t.width - 1 do
     for x = 0 to t.width - 1 do
-      if not (is_reserved t x y 1) then
+      if Char.equal__local (Bytes.get t.reserved ((y * t.width) + x)) '\000' then
         let mask = (x + y) % 2 = 0 (* Mask pattern 0: (x + y) % 2 = 0 *) in
         if mask then
           let current = Bytes.get t.buf ((y * t.width) + x) in

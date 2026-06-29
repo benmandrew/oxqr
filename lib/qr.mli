@@ -1,4 +1,4 @@
-type t = { buf : bytes; width : int }
+type t = { buf : bytes; reserved : bytes; width : int }
 
 val make : version:int -> t
 (** [make ~version] creates an empty QR code matrix for the given version. *)
