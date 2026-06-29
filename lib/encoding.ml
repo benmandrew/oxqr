@@ -1,5 +1,13 @@
 open Base
 
+let lm_encode = Landmark.register "encode"
+let lm_split = Landmark.register "split_into_blocks"
+let lm_interleave = Landmark.register "interleave_blocks"
+let lm_place_pattern = Landmark.register "place_pattern_modules"
+let lm_place_format = Landmark.register "place_format_info"
+let lm_place_data = Landmark.register "place_data"
+let lm_apply_mask = Landmark.register "apply_mask_pattern"
+
 (* Maximum sizes for QR version 40 (largest): 81 blocks, 119 data codewords,
    30 EC codewords per block, 3706 total codewords. *)
 let max_blocks = 81
@@ -188,15 +196,29 @@ let[@zero_alloc] encode arena s (ecl @ local) =
 let generate_qr arena s ecl =
   let config = Config.get_config s ecl in
   let ec_info = Config.get_ec_info config in
+  Landmark.enter lm_encode;
   let _ = encode arena s ecl in
+  Landmark.exit lm_encode;
+  Landmark.enter lm_split;
   let block_count = split_into_blocks arena ec_info in
+  Landmark.exit lm_split;
+  Landmark.enter lm_interleave;
   let final_data = interleave_blocks arena block_count ec_info in
+  Landmark.exit lm_interleave;
   let qr = Qr.make ~version:config.version in
+  Landmark.enter lm_place_pattern;
   Qr.place_pattern_modules qr config.version;
+  Landmark.exit lm_place_pattern;
   let mask_pattern = 0 in
+  Landmark.enter lm_place_format;
   Qr.place_format_info qr ~ecl:config.ecl ~mask_pattern;
+  Landmark.exit lm_place_format;
+  Landmark.enter lm_place_data;
   Qr.place_data qr final_data config.version;
+  Landmark.exit lm_place_data;
+  Landmark.enter lm_apply_mask;
   Qr.apply_mask_pattern qr;
+  Landmark.exit lm_apply_mask;
   qr
 
 let[@zero_alloc] generate_qr_stack arena s ecl =
