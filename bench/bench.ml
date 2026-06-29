@@ -36,7 +36,7 @@ let () =
       done;
       for _ = 1 to iters do
         Landmark.enter bench_generate_qr_stack;
-        Encoding.generate_qr_stack stack_arena data ecl;
+        Encoding.generate_qr_stack_bench stack_arena data ecl;
         Landmark.exit bench_generate_qr_stack
       done
     ) ecls
