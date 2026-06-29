@@ -31,12 +31,26 @@ You can then either run the CLI tool, or start a local web server to interact th
 
 ```bash
 dune exec oxqr -- --ecl M --format ascii "HELLO WORLD"
-# Or...
+# Or, build the JS bundle then serve it:
+dune build bin/web.bc.js
 python -m http.server 8000
 ```
 
+### Testing
 
+Tests are inline expect tests using `ppx_expect`.
 
+```bash
+dune test
+```
+
+### Benchmarking
+
+```bash
+# Latency distribution across QR versions
+dune exec bench/bench_dist.exe
+python bench/plot_dist.py   # generates bench/dist.png
+```
 
 ### Links
 
