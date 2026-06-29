@@ -1,0 +1,5 @@
+(executable
+ (name bench)
+ (libraries oxqr landmarks)
+ (flags
+  (:standard -w -32)))
