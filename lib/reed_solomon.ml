@@ -62,27 +62,41 @@ let generator_log_polynomials =
 let[@zero_alloc] generate_error_correction (remainder_scratch @ local)
     (data @ local) ~pos ~len ec_count (out @ local) ~out_pos =
   let log_generator = generator_log_polynomials.(ec_count) in
+  (* Bounds proof: remainder_scratch is always allocated with length 512
+     (see Arena in encoding.ml). Per the QR spec, len (data codewords/block)
+     and ec_count (EC codewords/block) are each well under 512, and
+     len+ec_count (max data+EC codewords in a single block) tops out around
+     183, so every remainder_scratch index below (i, len+i, i+j with
+     j<=ec_count) stays within [0, 511]. coef is always a GF(256) byte value
+     (0..255), so log_table.(coef) (table length 256) is always in range.
+     log_generator has length ec_count+1 (see generator_log_polynomials), so
+     log_generator.(ec_count - j) for j in [0, ec_count] is in range.
+     log_coef/log_gen (when >= 0) are each in [0, 254] by construction of
+     log_table, so log_gen + log_coef <= 508 < 512, keeping exp_table
+     (length 512) accesses in range. *)
   (* Copy data slice into the beginning of remainder and clear the EC tail. *)
   for i = 0 to len - 1 do
-    remainder_scratch.(i) <- Char.to_int (Bytes.get data (pos + i))
+    Array.unsafe_set remainder_scratch i (Char.to_int (Bytes.get data (pos + i)))
   done;
   for i = 0 to ec_count - 1 do
-    remainder_scratch.(len + i) <- 0
+    Array.unsafe_set remainder_scratch (len + i) 0
   done;
   (* Polynomial division: hoist log_table.(coef) out of the inner loop *)
   for i = 0 to len - 1 do
-    let coef = remainder_scratch.(i) in
+    let coef = Array.unsafe_get remainder_scratch i in
     if coef <> 0 then begin
-      let log_coef = log_table.(coef) in
+      let log_coef = Array.unsafe_get log_table coef in
       for j = 0 to ec_count do
-        let log_gen = log_generator.(ec_count - j) in
+        let log_gen = Array.unsafe_get log_generator (ec_count - j) in
         if log_gen >= 0 then
-          remainder_scratch.(i + j) <-
-            remainder_scratch.(i + j) lxor exp_table.(log_gen + log_coef)
+          Array.unsafe_set remainder_scratch (i + j)
+            (Array.unsafe_get remainder_scratch (i + j)
+            lxor Array.unsafe_get exp_table (log_gen + log_coef))
       done
     end
   done;
   (* Extract the last ec_count bytes as the error correction codewords *)
   for i = 0 to ec_count - 1 do
-    Bytes.set out (out_pos + i) (Char.of_int_exn remainder_scratch.(len + i))
+    Bytes.set out (out_pos + i)
+      (Char.of_int_exn (Array.unsafe_get remainder_scratch (len + i)))
   done
