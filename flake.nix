@@ -40,6 +40,7 @@
               which
               patch
               pythonEnv
+              libffi
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ bubblewrap ]
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ libiconv ];
