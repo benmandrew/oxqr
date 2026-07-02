@@ -12,33 +12,25 @@ jobs:
     steps:
       - name: "checkout"
         uses: "actions/checkout@v4"
-      - name: "cache opam"
+      - name: "install nix"
+        uses: "cachix/install-nix-action@v31"
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: "cache nix store"
+        uses: "nix-community/cache-nix-action@v7"
+        with:
+          primary-key: "nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}"
+          restore-prefixes-first-match: "nix-${{ runner.os }}-"
+          gc-max-store-size-linux: 1G
+      - name: "cache opam switch"
         uses: "actions/cache@v3"
         with:
-          path: ~/.opam
-          key: oxqr-${{ runner.os }}-${{ hashFiles('*.opam') }}
+          path: _opam
+          key: "oxqr-${{ runner.os }}-${{ hashFiles('*.opam') }}"
           restore-keys: |
             oxqr-${{ runner.os }}-
-      - name: "install opam"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y opam
-      - name: "setup oxcaml"
-        env:
-          OPAMYES: "1"
-        run: |
-          opam init --no-setup --disable-sandboxing
-          opam update --all
-          opam switch list | grep -q "5.2.0+ox" || opam switch create 5.2.0+ox --repos ox=git+https://github.com/oxcaml/opam-repository.git#535c466c935bb7076ff517e425cd08f8b2f6a356,default
-      - name: "install dependencies"
-        run: |
-          eval $(opam env --switch 5.2.0+ox)
-          opam install . -y --deps-only --with-test
       - name: "build"
-        run: |
-          eval $(opam env --switch 5.2.0+ox)
-          opam exec -- dune build
+        run: nix develop --command dune build
       - name: "test"
-        run: |
-          eval $(opam env --switch 5.2.0+ox)
-          opam exec -- dune runtest
+        run: nix develop --command dune runtest

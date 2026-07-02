@@ -10,7 +10,20 @@ This program can be run natively as a CLI tool, or in the browser by transpiling
 
 ### Building
 
-First, get a local copy of OxCaml as an opam switch.
+#### With Nix
+
+If you have Nix with flakes enabled, `nix develop` provisions the full toolchain (OxCaml compiler, dune, opam, python) in one step — no manual opam switch setup needed:
+
+```bash
+nix develop --extra-experimental-features "nix-command flakes"
+dune build
+```
+
+The first run builds the OxCaml compiler from source, which takes a while; subsequent runs reuse the `_opam` switch created in the project directory.
+
+#### Without Nix
+
+Get a local copy of OxCaml as an opam switch.
 
 ```bash
 # Update to make sure you get the latest version of all packages

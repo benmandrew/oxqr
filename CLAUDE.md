@@ -37,8 +37,14 @@ docs/       Built web assets (served statically)
 
 Dune 3.20, OxCaml switch `5.2.0+ox`.
 
+`flake.nix` provisions the full toolchain (compiler, dune, opam, python) self-contained via `nix develop`; CI uses it too (`.github/workflows/main.yml`). The opam-repository pin in `flake.nix` must stay at or after commit `e36bb6bb` (2026-04-13), which is when upstream patched a `cut -d'=' -f2` truncation bug in `utils/dune` that otherwise breaks the compiler build on compilers needing an explicit `-std` flag (e.g. newer Apple clang).
+
 ```bash
-# One-time switch setup (takes time)
+# Nix (recommended) — provisions everything
+nix develop --extra-experimental-features "nix-command flakes"
+dune build
+
+# Without Nix — manual opam switch setup (takes time)
 opam update --all
 opam switch create 5.2.0+ox --repos ox=git+https://github.com/oxcaml/opam-repository.git,default
 eval $(opam env --switch 5.2.0+ox)
