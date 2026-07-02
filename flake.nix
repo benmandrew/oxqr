@@ -47,8 +47,13 @@
           shellHook = ''
             export OPAMYES=1
             # Default 60s solver timeout is too short for this dependency
-            # set (OxCaml compiler + oxqr's full opam universe).
-            export OPAMSOLVERTIMEOUT=300
+            # set (OxCaml compiler + oxqr's full opam universe), and CI
+            # runners are slow enough that even 300s isn't reliably enough.
+            # A nonzero tolerance lets the solver stop at a near-optimal
+            # solution instead of proving global optimality, which is what
+            # actually makes this fast (per opam's own suggestion).
+            export OPAMSOLVERTIMEOUT=900
+            export OPAMSOLVERTOLERANCE=0.05
 
             if [ ! -d "$HOME/.opam" ]; then
               opam init --no-setup --disable-sandboxing --bare
