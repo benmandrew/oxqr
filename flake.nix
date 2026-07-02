@@ -40,7 +40,6 @@
               which
               patch
               pythonEnv
-              libffi
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ bubblewrap ]
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ libiconv ];
@@ -50,11 +49,14 @@
             # Default 60s solver timeout is too short for this dependency
             # set (OxCaml compiler + oxqr's full opam universe), and CI
             # runners are slow enough that even 300s isn't reliably enough.
-            # A nonzero tolerance lets the solver stop at a near-optimal
-            # solution instead of proving global optimality, which is what
-            # actually makes this fast (per opam's own suggestion).
-            export OPAMSOLVERTIMEOUT=900
-            export OPAMSOLVERTOLERANCE=0.05
+            # Deliberately NOT setting OPAMSOLVERTOLERANCE: a nonzero
+            # tolerance lets the solver settle for a near-optimal solution,
+            # but in practice that flips it from the lightweight
+            # oxcaml-ctypes.guard stub onto a real ctypes/ctypes-foreign
+            # build that needs a system libffi and fails to link on Linux.
+            # Strict optimality (tolerance=0, the default) reliably picks
+            # the guard stub -- it just needs more wall-clock time.
+            export OPAMSOLVERTIMEOUT=1200
 
             if [ ! -d "$HOME/.opam" ]; then
               opam init --no-setup --disable-sandboxing --bare
