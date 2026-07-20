@@ -10,3 +10,10 @@
  (foreign_stubs (language c) (names time_ns))
  (flags
   (:standard -w -32)))
+
+(executable
+ (name bench_raw)
+ (libraries oxqr)
+ (foreign_stubs (language c) (names time_ns_raw))
+ (flags
+  (:standard -w -32)))
