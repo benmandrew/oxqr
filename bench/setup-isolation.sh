@@ -161,8 +161,13 @@ apply)
     echo "3. offline SMT sibling ${sibling:-<none>}"
     set_sibling_online 0
     echo "4. stop irqbalance + steer IRQs to {${others}}"
-    run systemctl stop irqbalance
-    run systemctl mask irqbalance
+    if systemctl list-unit-files irqbalance.service >/dev/null 2>&1 &&
+        [ -n "$(systemctl list-unit-files irqbalance.service 2>/dev/null | grep -E '^irqbalance\.service')" ]; then
+        run systemctl stop irqbalance
+        run systemctl mask irqbalance
+    else
+        echo "  (irqbalance not installed — nothing to stop)"
+    fi
     steer_irqs "$others"
     echo "5. evict services + Docker from core ${core} (cgroup AllowedCPUs={${others}})"
     confine_slices "$others"
@@ -188,8 +193,13 @@ restore)
     echo "3. online SMT sibling ${sibling:-<none>}"
     set_sibling_online 1
     echo "4. re-enable irqbalance"
-    run systemctl unmask irqbalance
-    run systemctl start irqbalance
+    if systemctl list-unit-files irqbalance.service >/dev/null 2>&1 &&
+        [ -n "$(systemctl list-unit-files irqbalance.service 2>/dev/null | grep -E '^irqbalance\.service')" ]; then
+        run systemctl unmask irqbalance
+        run systemctl start irqbalance
+    else
+        echo "  (irqbalance not installed — nothing to re-enable)"
+    fi
     echo "5. reset slice AllowedCPUs to 0-${last}"
     confine_slices "0-${last}"
     echo

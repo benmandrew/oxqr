@@ -39,13 +39,30 @@ mkdir -p "$trial_dir"
 rm -f "$trial_dir"/trial_*.csv
 
 # Pin to the isolated core; optionally raise to real-time priority.
-runner=(taskset -c "$core")
+pin=(taskset -c "$core")
 if [ "${BENCH_RT:-0}" = "1" ]; then
     if command -v chrt >/dev/null; then
-        runner=(chrt -f 1 taskset -c "$core")
+        pin=(chrt -f 1 taskset -c "$core")
     else
         echo "BENCH_RT=1 but chrt missing; falling back to taskset only."
     fi
+fi
+
+# Under the no-reboot cgroup-isolation method (setup-isolation.sh), core $core is
+# removed from system.slice/user.slice, so a bare `taskset -c $core` from this
+# shell fails with EINVAL: the cgroup's effective cpuset is intersected with the
+# affinity mask, and $core is no longer in it. Launch each trial in a fresh
+# top-level slice instead — a new slice is unconfined, so its effective CPU set
+# still includes $core — and cap it to the core with AllowedCPUs. This also works
+# under the isolcpus method. The system-level scope needs root.
+if command -v systemd-run >/dev/null; then
+    sudo_cmd=()
+    [ "$(id -u)" = "0" ] || sudo_cmd=(sudo)
+    runner=("${sudo_cmd[@]}" systemd-run --scope --quiet \
+        --slice=oxqrbench.slice -p AllowedCPUs="$core" "${pin[@]}")
+else
+    echo "systemd-run not found; using bare ${pin[*]} (valid only under isolcpus, not cgroup isolation)."
+    runner=("${pin[@]}")
 fi
 
 echo

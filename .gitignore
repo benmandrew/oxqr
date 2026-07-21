@@ -41,3 +41,14 @@ _opam/
 *.png
 venv/
 .venv/
+
+# Benchmark scratch outputs (regenerated each run; see REPORT.md / bench/collect.sh)
+bench/machine.txt
+bench/spread.txt
+bench/collect.log
+bench/threshold.txt
+bench/gc_attribution.txt
+bench/throughput.txt
+
+# Scratch spec for the article's data collection
+REPORT.md

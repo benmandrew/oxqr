@@ -4,8 +4,11 @@
  (flags
   (:standard -w -32)))
 
-(executable
- (name bench_dist)
+; bench_dist and bench_gc share the time_ns C stub, so they live in one
+; (executables) stanza — two separate stanzas would each try to build an object
+; named "time_ns" and clash.
+(executables
+ (names bench_dist bench_gc)
  (libraries oxqr)
  (foreign_stubs (language c) (names time_ns))
  (flags
