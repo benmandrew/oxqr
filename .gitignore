@@ -42,6 +42,9 @@ _opam/
 venv/
 .venv/
 
+# direnv / nix-direnv local cache (.envrc itself is tracked)
+.direnv/
+
 # Benchmark scratch outputs (regenerated each run; see REPORT.md / bench/collect.sh)
 bench/machine.txt
 bench/spread.txt
