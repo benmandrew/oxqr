@@ -84,6 +84,26 @@ let threshold_report path =
 (*    no latency to the sample; they do add minor-heap churn, which is    *)
 (*    why we attribute on major_collections (robust to that) rather than  *)
 (*    minor GC.                                                           *)
+(*                                                                        *)
+(*    major_collections only increments on whichever call happens to     *)
+(*    finish the LAST slice of an in-progress cycle -- it marks a         *)
+(*    boundary, not "how much GC work this call did". gc_rate (fraction  *)
+(*    of ALL calls that complete a cycle) actually RISES with version     *)
+(*    (v8 0.29% -> v40 3.7%: bigger buffers spill onto the major heap     *)
+(*    every call, so slices -- and completions -- happen more often).     *)
+(*    What breaks down at high version is the correlation between        *)
+(*    "this call completed a cycle" and "this call was slow": at v8-v20   *)
+(*    the major heap is tiny, so one call's allocation is often enough to *)
+(*    finish most/all of a cycle's remaining work in a single slice --    *)
+(*    slice-work and completion coincide, so the flagged call really did  *)
+(*    pay for the whole cycle (p999_gc/p999_nogc ~17x at v8). At v40 the   *)
+(*    heap is bigger, each call still only contributes one incremental    *)
+(*    slice, and most of a cycle's cost is paid by earlier calls that did *)
+(*    a partial slice without completing it (gc=false, untagged) -- the   *)
+(*    call that finally tips the counter over only pays the last sliver,  *)
+(*    so p999_gc/p999_nogc compresses to ~2x and tail_gc_rate stops being *)
+(*    a reliable proxy for "this was the slow one", even though GC is     *)
+(*    still going on and still costing something.                        *)
 (* ------------------------------------------------------------------ *)
 let pct sorted p =
   sorted.(int_of_float (float_of_int (Array.length sorted - 1) *. p))
@@ -97,15 +117,33 @@ let attribution_report path =
   Printf.fprintf oc
     "# If tail_gc_rate >> gc_rate, the latency tail is caused by major GC.\n";
   Printf.fprintf oc
-    "# CAVEAT: the signal is 'a major cycle COMPLETED during the call'. In the\n";
+    "# CAVEAT: the signal is 'a major cycle COMPLETED during the call', which\n";
   Printf.fprintf oc
-    "# v8-v20 divergence regime GC is occasional, so it lands squarely on the\n";
+    "# marks a boundary, not 'how much GC work this call did'. gc_rate actually\n";
   Printf.fprintf oc
-    "# slow calls (tail_gc_rate ~ 1.0). At very high versions each call is long\n";
+    "# RISES with version (v8 0.29%% -> v40 3.7%%: bigger buffers spill onto the\n";
   Printf.fprintf oc
-    "# enough that a cycle spans several calls and rarely completes inside one,\n";
+    "# major heap every call, so completions get MORE frequent, not rarer).\n";
   Printf.fprintf oc
-    "# so the completion signal saturates and under-reads (v40 tail_gc_rate ~ 0).\n";
+    "# What breaks down at high version is the correlation, not the frequency:\n";
+  Printf.fprintf oc
+    "# at v8-v20 the heap is tiny, so one call's allocation often finishes most\n";
+  Printf.fprintf oc
+    "# of a cycle in one slice -- slice-work and completion coincide, so the\n";
+  Printf.fprintf oc
+    "# flagged call really paid for the whole cycle (p999_gc/p999_nogc ~17x at\n";
+  Printf.fprintf oc
+    "# v8). At v40 the heap is bigger, each call still only contributes one\n";
+  Printf.fprintf oc
+    "# incremental slice, and most of a cycle's cost is paid by earlier calls\n";
+  Printf.fprintf oc
+    "# that did a partial slice without completing it (untagged, gc=false) --\n";
+  Printf.fprintf oc
+    "# the call that tips the counter over only pays the last sliver, so the\n";
+  Printf.fprintf oc
+    "# ratio compresses to ~2x and tail_gc_rate stops proxying for 'the slow\n";
+  Printf.fprintf oc
+    "# one', even though GC is still happening and still costing something.\n";
   Printf.fprintf oc
     "# Latencies in ns.  p50/p999 split by whether the call saw a major GC.\n";
   Printf.fprintf oc
