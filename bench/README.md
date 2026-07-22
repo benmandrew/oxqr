@@ -18,7 +18,9 @@ bench/setup-isolation.sh apply --dry-run 7   # preview every change (no root, no
 sudo bench/setup-isolation.sh apply 7        # isolate core 7, evict services + Docker
 bench/check-env.sh 7                           # confirm it's clean
 bench/run-bench.sh 15                           # 15 pinned trials -> dist.csv + spread report
-python bench/plot_dist.py                       # plot dist.csv
+python bench/plot_dist.py                       # Figure 1: p50/p99/p99.9 vs version
+python bench/plot_ratio.py                      # Figure 2: heap/stack ratio vs version
+python bench/p50_parity.py                      # p50 heap/stack gap report (no run needed once dist.csv exists)
 sudo bench/setup-isolation.sh restore 7      # give the core back when done
 ```
 
@@ -142,3 +144,8 @@ percentile without its provenance is not a measurement.
 | `setup-isolation.sh apply\|restore [CORE]` | Apply/undo the runtime isolation; prints the GRUB line for the reboot-only bits. Needs `sudo`. |
 | `run-bench.sh [N] [CORE]` | Pinned N-trial run + aggregation. |
 | `aggregate.py trial_*.csv` | Median `dist.csv` + spread report. |
+| `plot_dist.py` | Figure 1: p50/p99/p99.9 heap+stack vs version -> `dist.png`. |
+| `plot_ratio.py` | Figure 2: heap/stack ratio at p99/p99.9 vs version -> `ratio.png`. |
+| `p50_parity.py` | p50 heap/stack gap per version, from the existing `dist.csv` -> `p50_parity.txt`. |
+| `collect_throughput_history.sh [N] [CORE]` | Per-commit landmark-cycle history across the perf-commit series (builds+runs each checkout in an isolated `git worktree`) -> raw trial dumps in `throughput_trials/`. |
+| `aggregate_throughput.py DIR` | Median cycles + CV% per (commit, landmark) from `collect_throughput_history.sh`'s raw dumps -> `throughput_history.csv`/`.txt`. |
