@@ -1,7 +1,12 @@
 import csv
+import os
 import matplotlib.pyplot as plt
 
-rows = list(csv.DictReader(open('dist.csv')))
+# Resolve data/output next to this script so it works from any cwd (README and
+# bench/collect.sh invoke it as `python bench/plot_dist.py` from the repo root).
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+rows = list(csv.DictReader(open(os.path.join(HERE, 'dist.csv'))))
 v    = [int(r['version']) for r in rows]
 
 def col(name):
@@ -28,5 +33,5 @@ ax.grid(which='major', linestyle='-',  linewidth=0.5, alpha=0.5)
 ax.grid(which='minor', linestyle='--', linewidth=0.3, alpha=0.3)
 ax.legend(ncol=2)
 plt.tight_layout()
-plt.savefig('dist.png', dpi=150)
+plt.savefig(os.path.join(HERE, 'dist.png'), dpi=150)
 print('wrote dist.png')
