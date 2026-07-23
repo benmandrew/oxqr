@@ -66,14 +66,13 @@ dune build --profile release bench/bench.exe &&
     echo "wrote bench/throughput.txt" || echo "  (bench.exe failed)"
 
 # --- 3. GC attribution + threshold (REPORT section 3) -----------------------
-step "[3] bench_gc.exe -> threshold.txt, gc_attribution.txt"
-dune build --profile release bench/bench_gc.exe &&
-    scope ./_build/default/bench/bench_gc.exe "$repo_root/bench" ||
-    echo "  (bench_gc failed)"
+step "[3] run-bench-gc.sh $trials -> threshold.txt, gc_attribution.txt, gc_spread.txt"
+bench/run-bench-gc.sh "$trials" || echo "  (bench_gc trials failed)"
 
 step "done"
 echo "Deliverables in bench/:"
 ls -o bench/machine.txt bench/dist.csv bench/spread.txt bench/dist.png \
-    bench/throughput.txt bench/threshold.txt bench/gc_attribution.txt 2>&1
+    bench/throughput.txt bench/threshold.txt bench/gc_attribution.txt bench/gc_spread.txt 2>&1
 echo "trials collected: $(ls bench/trials/trial_*.csv 2>/dev/null | wc -l)"
+echo "gc trials collected: $(ls -d bench/gc_trials/trial_* 2>/dev/null | wc -l)"
 echo "=== OxQR collection finished $(ts) ==="

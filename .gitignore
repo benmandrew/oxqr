@@ -57,6 +57,8 @@ bench/throughput_history.csv
 bench/throughput_history.txt
 bench/throughput_history.log
 bench/throughput_trials/
+bench/gc_trials/
+bench/gc_spread.txt
 
 # Scratch spec for the article's data collection
 REPORT.md

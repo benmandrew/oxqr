@@ -21,6 +21,7 @@ bench/run-bench.sh 15                           # 15 pinned trials -> dist.csv +
 python bench/plot_dist.py                       # Figure 1: p50/p99/p99.9 vs version
 python bench/plot_ratio.py                      # Figure 2: heap/stack ratio vs version
 python bench/p50_parity.py                      # p50 heap/stack gap report (no run needed once dist.csv exists)
+bench/run-bench-gc.sh 15                        # 15 pinned trials -> threshold.txt/gc_attribution.txt + spread report
 sudo bench/setup-isolation.sh restore 7      # give the core back when done
 ```
 
@@ -62,7 +63,8 @@ nanosecond resolution, so low percentiles are not quantised.
 **Sample count** still only sets *within-run* precision: p99.9 needs ~100
 samples in the tail (`n·(1−p)`), so `n = 100_000` gives a ±5% within-run CI and
 more buys little; `n < 10_000` is noisy *and biased low*. Reproducibility comes
-from repeated runs, which `run-bench.sh` handles.
+from repeated runs, which `run-bench.sh` (latency distribution) and
+`run-bench-gc.sh` (GC attribution + threshold) handle.
 
 ## Choosing a core
 
@@ -136,6 +138,15 @@ BENCH_CPU=7 bench/run-bench.sh 15
 Commit `dist.csv` together with the trial count, core id, and machine spec; a
 percentile without its provenance is not a measurement.
 
+`run-bench-gc.sh` follows the same pattern for the GC-attribution and
+threshold-crossing benchmarks (`bench_gc.exe`): it runs `N` fresh processes
+pinned to the core, one `threshold.txt`/`gc_attribution.txt` per trial under
+`bench/gc_trials/`, and calls `aggregate_gc.py` to write the median
+`bench/threshold.txt`/`bench/gc_attribution.txt` plus a `bench/gc_spread.txt`
+spread report (median, min–max, CV% per measured column). Previously these two
+files were a single unrepeated run with no reproducibility evidence at all;
+now they carry the same CV%-backed guarantee `dist.csv` does.
+
 ## Scripts
 
 | Script | Purpose |
@@ -147,5 +158,7 @@ percentile without its provenance is not a measurement.
 | `plot_dist.py` | Figure 1: p50/p99/p99.9 heap+stack vs version -> `dist.png`. |
 | `plot_ratio.py` | Figure 2: heap/stack ratio at p99/p99.9 vs version -> `ratio.png`. |
 | `p50_parity.py` | p50 heap/stack gap per version, from the existing `dist.csv` -> `p50_parity.txt`. |
+| `run-bench-gc.sh [N] [CORE]` | Pinned N-trial run of `bench_gc.exe` + aggregation -> median `threshold.txt`/`gc_attribution.txt` + spread report. |
+| `aggregate_gc.py trial_dir...` | Median `threshold.txt`/`gc_attribution.txt` + `gc_spread.txt` (CV% per measured column) from `run-bench-gc.sh`'s per-trial dumps. |
 | `collect_throughput_history.sh [N] [CORE]` | Per-commit landmark-cycle history across the perf-commit series (builds+runs each checkout in an isolated `git worktree`) -> raw trial dumps in `throughput_trials/`. |
 | `aggregate_throughput.py DIR` | Median cycles + CV% per (commit, landmark) from `collect_throughput_history.sh`'s raw dumps -> `throughput_history.csv`/`.txt`. |
