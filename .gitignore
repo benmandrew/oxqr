@@ -55,6 +55,7 @@ bench/throughput.txt
 bench/p50_parity.txt
 bench/throughput_history.csv
 bench/throughput_history.txt
+bench/throughput_history.log
 bench/throughput_trials/
 
 # Scratch spec for the article's data collection

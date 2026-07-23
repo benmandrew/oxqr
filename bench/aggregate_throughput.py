@@ -36,6 +36,13 @@ from collections import defaultdict
 # Must match the `commits` array in collect_throughput_history.sh, in order.
 COMMIT_LABELS = ["baseline", "a087189", "3e1a912", "6478790", "8549c9f", "d5155d1"]
 
+# Docs-only commits whose lib/ is byte-identical to an earlier perf commit
+# (see collect_throughput_history.sh's CONTROL_COMMITS default) -- their
+# measured throughput MUST match that twin; any gap is harness
+# non-determinism, not a code change. Update if the shell script's default
+# control point changes.
+CONTROL_TWINS = {"ctl-4f2acd5": "8549c9f"}
+
 SUFFIX = {"": 1, "K": 1e3, "M": 1e6, "G": 1e9}
 TIME_RE = re.compile(r"^([\d.]+)([KMG]?)$")
 
@@ -109,7 +116,8 @@ def main(argv):
     if not by_label:
         sys.exit(f"no trial files (*_trial_NN.txt) found in {trial_dir}")
 
-    labels = [l for l in COMMIT_LABELS if l in by_label]
+    extra_labels = sorted(l for l in by_label if l not in COMMIT_LABELS)
+    labels = [l for l in COMMIT_LABELS if l in by_label] + extra_labels
     missing = [l for l in COMMIT_LABELS if l not in by_label]
     landmarks = sorted({name for d in by_label.values() for name in d})
 
@@ -182,6 +190,36 @@ def main(argv):
             lines.append(f"  cumulative baseline->d5155d1 if folded in: {cum_with_d5:.2f}x")
     else:
         lines.append("generate_qr: 8549c9f/d5155d1 data missing, cannot compute d5155d1 delta")
+
+    lines.append("")
+    for ctl_label, twin in CONTROL_TWINS.items():
+        if ctl_label not in by_label:
+            continue
+        if twin not in by_label:
+            lines.append(f"control {ctl_label} (twin {twin}): twin data missing, cannot check")
+            continue
+        shared = sorted(set(by_label[ctl_label]) & set(by_label[twin]))
+        gaps = []
+        for name in shared:
+            m_ctl, _ = median_cv(by_label[ctl_label][name])
+            m_twin, _ = median_cv(by_label[twin][name])
+            gap_pct = abs(m_ctl - m_twin) / m_twin * 100 if m_twin else 0.0
+            gaps.append((name, m_ctl, m_twin, gap_pct))
+        lines.append(f"control check: {ctl_label} vs twin {twin} (byte-identical lib/, must match)")
+        if gaps:
+            worst = max(gaps, key=lambda g: g[3])
+            lines.append(
+                f"  max landmark gap: {worst[0]} {worst[3]:.2f}% "
+                f"({ctl_label}={worst[1]/1e6:.1f}M, {twin}={worst[2]/1e6:.1f}M)"
+            )
+            verdict = (
+                "OK (harness noise looks clean)"
+                if worst[3] < 3.0
+                else "WARN -- gap exceeds 3%, treat cross-commit deltas near this size with suspicion"
+            )
+            lines.append(f"  {verdict}")
+        else:
+            lines.append("  no shared landmarks to compare")
 
     lines.append("")
     lines.append(
