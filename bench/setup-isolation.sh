@@ -120,6 +120,33 @@ set_sibling_online() {
     write_file "$state" "$f"
 }
 
+# Re-online every CPU the kernel currently reports as offline. On `restore` the
+# offlined sibling cannot be re-derived from topology: once a sibling is offline
+# the surviving CPU's thread_siblings_list collapses to just itself, so the
+# `sibling` computed at startup is empty and set_sibling_online is a no-op --
+# which used to leave the host a core short. This tool only ever offlines the
+# SMT sibling, so /sys/devices/system/cpu/offline is exactly the set to restore.
+online_offline_cpus() {
+    local mask part cpu onlined=()
+    mask="$(cat /sys/devices/system/cpu/offline 2>/dev/null)"
+    if [ -z "$mask" ]; then
+        echo "  (no offline CPUs to restore)"
+        return 0
+    fi
+    # Expand a sysfs cpu-range list ("3", "3,5-6") into individual CPU numbers.
+    for part in ${mask//,/ }; do
+        if [[ "$part" == *-* ]]; then
+            for cpu in $(seq "${part%-*}" "${part#*-}"); do onlined+=("$cpu"); done
+        else
+            onlined+=("$part")
+        fi
+    done
+    for cpu in "${onlined[@]}"; do
+        write_file 1 "/sys/devices/system/cpu/cpu${cpu}/online"
+    done
+    echo "  re-onlined offline CPU(s): ${onlined[*]}"
+}
+
 steer_irqs() {
     # Best-effort: set each IRQ's affinity to the 'others' set. Some IRQs are
     # pinned by the kernel and will refuse the write; that's expected.
@@ -190,8 +217,8 @@ restore)
     fi
     echo "2. turbo/boost -> on"
     set_turbo on
-    echo "3. online SMT sibling ${sibling:-<none>}"
-    set_sibling_online 1
+    echo "3. online offlined SMT sibling(s)"
+    online_offline_cpus
     echo "4. re-enable irqbalance"
     if systemctl list-unit-files irqbalance.service >/dev/null 2>&1 &&
         [ -n "$(systemctl list-unit-files irqbalance.service 2>/dev/null | grep -E '^irqbalance\.service')" ]; then
