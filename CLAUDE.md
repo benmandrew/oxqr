@@ -22,12 +22,13 @@ test/       Inline expect tests (ppx_expect)
   test_qr.ml
   test_encoding.ml
 
-bench/      Benchmarks
-  bench.ml          Landmark-based profiling
-  bench_versions.ml Throughput across QR versions (outputs versions.csv)
+bench/      Benchmarks (see bench/README.md for the full script list)
+  bench.ml          Landmark-based profiling (outputs throughput.txt)
   bench_dist.ml     Latency distribution (outputs dist.csv)
-  plot_versions.py  Plot versions.csv → versions.png
+  bench_gc.ml       GC attribution + alloc-threshold probe (outputs gc_attribution.txt, threshold.txt)
   plot_dist.py      Plot dist.csv → dist.png
+  run-all.sh        Single command: build + run every benchmark + regenerate every plot (portable, no isolation)
+  run-bench.sh, run-bench-gc.sh, collect.sh    Isolated-core, repeated-trial methodology (Linux, needs sudo)
 
 web/        Browser demo (HTML/CSS/JS + compiled wasm/js)
 docs/       Built web assets (served statically)
@@ -66,14 +67,14 @@ dune test
 # Release build (enables -O3)
 dune build --profile release
 
-# Run benchmarks
-dune exec bench/bench_versions.exe          # version-scaling throughput
-dune exec bench/bench_dist.exe              # latency distribution
-python bench/plot_versions.py               # generate versions.png
-python bench/plot_dist.py                   # generate dist.png
+# Run every benchmark + regenerate every plot in one command (portable, no isolation)
+bench/run-all.sh
 
-# Landmark profiling (bench.ml)
-dune exec bench/bench.exe
+# Or individually:
+dune exec bench/bench_dist.exe              # latency distribution
+dune exec bench/bench.exe                   # landmark profiling
+dune exec bench/bench_gc.exe                # GC attribution + alloc-threshold probe
+python bench/plot_dist.py                   # generate dist.png
 
 # Browser demo — build JS then serve
 dune build bin/web.bc.js
@@ -97,7 +98,10 @@ Tests are inline expect tests using `ppx_expect`. Run with `dune test`. Promotab
 
 ## Benchmarking workflow
 
-1. Edit benchmark in `bench/bench_versions.ml` or `bench/bench_dist.ml`.
-2. `dune exec bench/bench_<name>.exe > bench/<name>.csv` (or let the executable write the file).
-3. `python bench/plot_<name>.py` to regenerate the PNG.
-4. Commit CSVs and PNGs together with the benchmark source change.
+1. Edit the benchmark source (`bench/bench_dist.ml`, `bench/bench_gc.ml`, etc.).
+2. `bench/run-all.sh` to rebuild and regenerate every data file + plot in one
+   command (unpinned, portable — good for a quick before/after check).
+3. For numbers going into the article, use the isolated-core, repeated-trial
+   scripts instead (`bench/collect.sh`, or `run-bench.sh`/`run-bench-gc.sh`
+   individually) — see `bench/README.md`.
+4. Commit CSVs/PNGs/txt reports together with the benchmark source change.

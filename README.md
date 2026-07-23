@@ -60,10 +60,15 @@ dune test
 ### Benchmarking
 
 ```bash
-# Latency distribution across QR versions
-dune exec bench/bench_dist.exe
-python bench/plot_dist.py   # generates bench/dist.png
+bench/run-all.sh
 ```
+
+Builds and runs every benchmark (latency distribution, landmark throughput, GC
+attribution) and regenerates every plot/report in one command. It's unpinned
+(no core isolation, no sudo) so it's portable to any dev machine — good for a
+quick "did my change help or hurt" check, not for publication-grade tail
+percentiles. See `bench/README.md` for the isolated-core, repeated-trial
+methodology (`bench/collect.sh`) used for the numbers cited in the article.
 
 ### Links
 
